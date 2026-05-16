@@ -41,9 +41,9 @@ Phase 4A is implemented:
 
 Pipeline foundation is implemented:
 
-- minimal single-frame pipeline coordinator;
+- minimal single-frame pipeline coordinator with postprocessing and metrics;
 - pipeline tests with fake video source and mock detector;
-- no real model, display, metrics, or storage integration yet.
+- no real model, display, or storage integration yet.
 
 Postprocessing foundation is implemented:
 
