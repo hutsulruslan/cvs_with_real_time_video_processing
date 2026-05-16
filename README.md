@@ -71,6 +71,12 @@ Window display foundation is implemented:
 - configurable quit key;
 - tests with fake OpenCV object and no real GUI window.
 
+Minimal visual application wrapper is implemented:
+
+- controlled finite run loop;
+- dependency-injected source, pipeline, renderer, and display;
+- tests with fake source/display and no real camera or GUI window.
+
 The full video processing pipeline is intentionally not implemented yet.
 
 ## Environment
