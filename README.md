@@ -65,6 +65,12 @@ Renderer foundation is implemented:
 - optional FPS overlay;
 - renderer tests without display windows.
 
+Window display foundation is implemented:
+
+- OpenCV window display wrapper;
+- configurable quit key;
+- tests with fake OpenCV object and no real GUI window.
+
 The full video processing pipeline is intentionally not implemented yet.
 
 ## Environment
