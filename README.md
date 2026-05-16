@@ -39,11 +39,18 @@ Phase 4A is implemented:
 - deterministic mock detector;
 - inference tests that do not require a model file.
 
-Phase 4B is implemented:
+Pipeline foundation is implemented:
 
 - minimal single-frame pipeline coordinator;
 - pipeline tests with fake video source and mock detector;
 - no real model, display, metrics, or storage integration yet.
+
+Postprocessing foundation is implemented:
+
+- confidence threshold filtering;
+- max detections limiting by confidence;
+- coordinate scaling back to original frame size;
+- focused tests for postprocessing logic.
 
 The full video processing pipeline is intentionally not implemented yet.
 
