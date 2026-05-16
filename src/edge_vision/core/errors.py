@@ -12,3 +12,7 @@ class ApplicationError(EdgeVisionError):
 
 class VideoSourceError(EdgeVisionError):
     """Raised when a video source cannot be opened or read."""
+
+
+class PreprocessingError(EdgeVisionError):
+    """Raised when a frame cannot be prepared for model input."""

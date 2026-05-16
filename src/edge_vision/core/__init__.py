@@ -5,6 +5,7 @@ from edge_vision.core.errors import (
     ApplicationError,
     ConfigurationError,
     EdgeVisionError,
+    PreprocessingError,
     VideoSourceError,
 )
 from edge_vision.core.frame import FramePacket, PreprocessedFrame
@@ -17,6 +18,7 @@ __all__ = [
     "EdgeVisionError",
     "FramePacket",
     "FrameResult",
+    "PreprocessingError",
     "PreprocessedFrame",
     "VideoSourceError",
 ]

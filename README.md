@@ -25,6 +25,26 @@ Phase 2 is implemented:
 - video source factory;
 - tests using fake capture objects.
 
+Phase 3 is implemented:
+
+- frame resizing for model input size;
+- BGR to RGB color conversion;
+- batched tensor preparation;
+- optional float32 normalization;
+- preprocessing tests with NumPy frames.
+
+Phase 4A is implemented:
+
+- object detector interface;
+- deterministic mock detector;
+- inference tests that do not require a model file.
+
+Phase 4B is implemented:
+
+- minimal single-frame pipeline coordinator;
+- pipeline tests with fake video source and mock detector;
+- no real model, display, metrics, or storage integration yet.
+
 The full video processing pipeline is intentionally not implemented yet.
 
 ## Environment
