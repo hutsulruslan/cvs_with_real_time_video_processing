@@ -8,3 +8,7 @@ class ConfigurationError(EdgeVisionError):
 
 class ApplicationError(EdgeVisionError):
     """Raised for high-level application lifecycle errors."""
+
+
+class VideoSourceError(EdgeVisionError):
+    """Raised when a video source cannot be opened or read."""

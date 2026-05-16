@@ -17,7 +17,15 @@ Phase 1 is implemented:
 - custom application exceptions;
 - pytest tests for configuration loading.
 
-The video processing pipeline is intentionally not implemented yet.
+Phase 2 is implemented:
+
+- base video source interface;
+- OpenCV camera source;
+- OpenCV video file source;
+- video source factory;
+- tests using fake capture objects.
+
+The full video processing pipeline is intentionally not implemented yet.
 
 ## Environment
 
@@ -59,6 +67,10 @@ python main.py --config config.yaml
 At this stage the command only validates and loads configuration. Later phases
 will connect the video source, preprocessing, inference, visualization, metrics,
 and optional storage modules.
+
+Phone camera testing can be done later by exposing the phone as a virtual camera
+or by adding a dedicated stream source. The Phase 2 camera source already supports
+virtual camera devices available through OpenCV camera indexes.
 
 ## Tests
 
