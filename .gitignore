@@ -1,0 +1,64 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Environment and local configuration
+.env
+.env.*
+*.local
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Local agent instructions
+AGENTS.md
+agents.md
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Build and packaging artifacts
+build/
+dist/
+*.egg-info/
+
+# Logs
+*.log
+logs/
+
+# Generated output from video processing
+output/
+
+# Large local media/model artifacts
+# Keep placeholder files if needed by adding exceptions later.
+assets/models/*.tflite
+assets/models/*.onnx
+assets/models/*.pb
+assets/models/*.pt
+assets/models/*.pth
+assets/samples/*.mp4
+assets/samples/*.avi
+assets/samples/*.mov
+assets/samples/*.mkv
+
+# Temporary files
+tmp/
+temp/

@@ -1,0 +1,30 @@
+video:
+  source_type: "camera"
+  camera_index: 0
+  file_path: "assets/samples/sample_video.mp4"
+  width: 640
+  height: 480
+
+model:
+  runtime: "tflite"
+  model_path: "assets/models/model.tflite"
+  labels_path: "assets/models/labels.txt"
+  input_width: 320
+  input_height: 320
+  confidence_threshold: 0.4
+  nms_threshold: 0.5
+
+processing:
+  frame_skip: 0
+  enable_tracking: false
+  max_detections: 20
+
+display:
+  show_window: true
+  show_fps: true
+  window_name: "Edge Vision System"
+
+storage:
+  save_detections: true
+  save_frames: false
+  output_dir: "output"
