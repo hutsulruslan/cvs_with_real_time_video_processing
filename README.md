@@ -58,6 +58,13 @@ Metrics foundation is implemented:
 - lightweight named-section profiler;
 - deterministic tests without real sleeps.
 
+Renderer foundation is implemented:
+
+- detection bounding box drawing;
+- class label and confidence drawing;
+- optional FPS overlay;
+- renderer tests without display windows.
+
 The full video processing pipeline is intentionally not implemented yet.
 
 ## Environment
