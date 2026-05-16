@@ -52,6 +52,12 @@ Postprocessing foundation is implemented:
 - coordinate scaling back to original frame size;
 - focused tests for postprocessing logic.
 
+Metrics foundation is implemented:
+
+- FPS counter with injectable time provider;
+- lightweight named-section profiler;
+- deterministic tests without real sleeps.
+
 The full video processing pipeline is intentionally not implemented yet.
 
 ## Environment
