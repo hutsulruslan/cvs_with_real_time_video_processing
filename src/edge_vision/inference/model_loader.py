@@ -28,6 +28,15 @@ def _load_interpreter_class() -> Any:
 
         return Interpreter
     except ImportError:
+        return _load_ai_edge_litert_interpreter()
+
+
+def _load_ai_edge_litert_interpreter() -> Any:
+    try:
+        from ai_edge_litert.interpreter import Interpreter
+
+        return Interpreter
+    except ImportError:
         return _load_tensorflow_lite_interpreter()
 
 
@@ -37,7 +46,8 @@ def _load_tensorflow_lite_interpreter() -> Any:
     except ImportError as error:
         raise TFLiteRuntimeError(
             "TFLite runtime is not installed. Install tflite-runtime, "
-            "TensorFlow, or a LiteRT-compatible runtime to use model.runtime=tflite."
+            "ai-edge-litert, TensorFlow, or another LiteRT-compatible runtime "
+            "to use model.runtime=tflite."
         ) from error
 
     return tensorflow.lite.Interpreter

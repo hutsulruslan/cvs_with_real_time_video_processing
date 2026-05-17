@@ -13,6 +13,7 @@ model:
   input_height: 320
   confidence_threshold: 0.4
   nms_threshold: 0.5
+  normalize: false
 
 processing:
   frame_skip: 0

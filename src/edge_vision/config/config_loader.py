@@ -72,6 +72,7 @@ def parse_config_data(raw_data: Any) -> AppSettings:
             input_height=sections["model"]["input_height"],
             confidence_threshold=sections["model"]["confidence_threshold"],
             nms_threshold=sections["model"]["nms_threshold"],
+            normalize=sections["model"].get("normalize", False),
         ),
         processing=ProcessingSettings(
             frame_skip=sections["processing"]["frame_skip"],
@@ -125,6 +126,7 @@ def _validate_settings(settings: AppSettings) -> None:
     _require_positive_int(settings.model.input_height, "model.input_height")
     _require_probability(settings.model.confidence_threshold, "model.confidence_threshold")
     _require_probability(settings.model.nms_threshold, "model.nms_threshold")
+    _require_bool(settings.model.normalize, "model.normalize")
 
     _require_non_negative_int(settings.processing.frame_skip, "processing.frame_skip")
     _require_bool(settings.processing.enable_tracking, "processing.enable_tracking")

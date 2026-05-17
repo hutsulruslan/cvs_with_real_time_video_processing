@@ -32,6 +32,7 @@ def test_load_config_returns_typed_settings(tmp_path: Path) -> None:
     assert settings.video.width == 640
     assert settings.model.runtime == "mock"
     assert settings.model.confidence_threshold == 0.4
+    assert settings.model.normalize is False
     assert settings.processing.max_detections == 20
     assert settings.display.window_name == "Edge Vision System"
     assert settings.storage.output_dir == "output"
@@ -70,6 +71,23 @@ def test_parse_config_accepts_tflite_runtime_for_future_detector() -> None:
     assert settings.model.runtime == "tflite"
 
 
+def test_parse_config_accepts_model_normalization_flag() -> None:
+    raw_config = _valid_config_dict()
+    raw_config["model"]["normalize"] = True
+
+    settings = parse_config_data(raw_config)
+
+    assert settings.model.normalize is True
+
+
+def test_parse_config_rejects_invalid_model_normalization_flag() -> None:
+    raw_config = _valid_config_dict()
+    raw_config["model"]["normalize"] = "false"
+
+    with pytest.raises(ConfigurationError, match="model.normalize"):
+        parse_config_data(raw_config)
+
+
 def _valid_config_yaml() -> str:
     return dedent(
         """
@@ -88,6 +106,7 @@ def _valid_config_yaml() -> str:
           input_height: 320
           confidence_threshold: 0.4
           nms_threshold: 0.5
+          normalize: false
 
         processing:
           frame_skip: 0

@@ -31,6 +31,7 @@ class FramePreprocessor:
         return cls(
             input_width=settings.input_width,
             input_height=settings.input_height,
+            normalize_input=settings.normalize,
         )
 
     def preprocess(self, packet: FramePacket) -> PreprocessedFrame:

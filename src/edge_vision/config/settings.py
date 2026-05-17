@@ -26,6 +26,7 @@ class ModelSettings:
     input_height: int
     confidence_threshold: float
     nms_threshold: float
+    normalize: bool = False
 
 
 @dataclass(frozen=True, slots=True)

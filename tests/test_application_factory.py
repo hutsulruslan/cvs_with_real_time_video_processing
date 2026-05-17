@@ -45,10 +45,10 @@ def test_create_application_runs_mock_visual_mode_with_overrides() -> None:
     assert display.shown_frames[0].sum() > 0
 
 
-def test_create_application_reports_missing_tflite_model_file() -> None:
+def test_create_application_reports_missing_tflite_model_file(tmp_path: Path) -> None:
     with pytest.raises(TFLiteRuntimeError, match="model file"):
         create_application(
-            _settings(runtime="tflite"),
+            _settings(runtime="tflite", model_path=str(tmp_path / "missing_model.tflite")),
             video_source=FakeVideoSource([]),
             display=FakeDisplay(),
         )
@@ -87,13 +87,18 @@ class FakeDisplay:
         self.closed = True
 
 
-def _settings(runtime: str = "mock", show_window: bool = True) -> AppSettings:
+def _settings(
+    runtime: str = "mock",
+    show_window: bool = True,
+    model_path: str = "assets/models/model.tflite",
+    labels_path: str = "assets/models/labels.txt",
+) -> AppSettings:
     return AppSettings(
         video=VideoSettings("camera", 0, "assets/samples/sample_video.mp4", 640, 480),
         model=ModelSettings(
             runtime,
-            "assets/models/model.tflite",
-            "assets/models/labels.txt",
+            model_path,
+            labels_path,
             320,
             320,
             0.4,

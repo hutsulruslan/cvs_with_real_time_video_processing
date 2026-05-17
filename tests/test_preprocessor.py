@@ -89,12 +89,14 @@ def test_preprocessor_can_be_created_from_model_settings() -> None:
         input_height=240,
         confidence_threshold=0.4,
         nms_threshold=0.5,
+        normalize=True,
     )
 
     preprocessor = FramePreprocessor.from_model_settings(settings)
 
     assert preprocessor.input_width == 320
     assert preprocessor.input_height == 240
+    assert preprocessor.normalize_input is True
 
 
 def test_image_transform_helpers_prepare_expected_shapes_and_values() -> None:
