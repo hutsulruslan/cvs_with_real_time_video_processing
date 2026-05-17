@@ -36,6 +36,7 @@ def test_load_config_returns_typed_settings(tmp_path: Path) -> None:
     assert settings.processing.max_detections == 20
     assert settings.display.window_name == "Edge Vision System"
     assert settings.storage.output_dir == "output"
+    assert settings.storage.format == "csv"
 
 
 def test_parse_config_rejects_missing_section() -> None:
@@ -88,6 +89,23 @@ def test_parse_config_rejects_invalid_model_normalization_flag() -> None:
         parse_config_data(raw_config)
 
 
+def test_parse_config_accepts_storage_json_format() -> None:
+    raw_config = _valid_config_dict()
+    raw_config["storage"]["format"] = "json"
+
+    settings = parse_config_data(raw_config)
+
+    assert settings.storage.format == "json"
+
+
+def test_parse_config_rejects_invalid_storage_format() -> None:
+    raw_config = _valid_config_dict()
+    raw_config["storage"]["format"] = "xml"
+
+    with pytest.raises(ConfigurationError, match="storage.format"):
+        parse_config_data(raw_config)
+
+
 def _valid_config_yaml() -> str:
     return dedent(
         """
@@ -119,9 +137,10 @@ def _valid_config_yaml() -> str:
           window_name: "Edge Vision System"
 
         storage:
-          save_detections: true
+          save_detections: false
           save_frames: false
           output_dir: "output"
+          format: "csv"
         """
     )
 
@@ -155,8 +174,9 @@ def _valid_config_dict() -> dict:
             "window_name": "Edge Vision System",
         },
         "storage": {
-            "save_detections": True,
+            "save_detections": False,
             "save_frames": False,
             "output_dir": "output",
+            "format": "csv",
         },
     }

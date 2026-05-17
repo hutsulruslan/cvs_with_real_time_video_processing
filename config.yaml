@@ -26,6 +26,7 @@ display:
   window_name: "Edge Vision System"
 
 storage:
-  save_detections: true
+  save_detections: false
   save_frames: false
   output_dir: "output"
+  format: "csv"

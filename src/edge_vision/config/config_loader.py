@@ -88,6 +88,7 @@ def parse_config_data(raw_data: Any) -> AppSettings:
             save_detections=sections["storage"]["save_detections"],
             save_frames=sections["storage"]["save_frames"],
             output_dir=sections["storage"]["output_dir"],
+            format=sections["storage"].get("format", "csv"),
         ),
     )
     _validate_settings(settings)
@@ -139,6 +140,8 @@ def _validate_settings(settings: AppSettings) -> None:
     _require_bool(settings.storage.save_detections, "storage.save_detections")
     _require_bool(settings.storage.save_frames, "storage.save_frames")
     _require_text(settings.storage.output_dir, "storage.output_dir")
+    if settings.storage.format not in {"csv", "json"}:
+        raise ConfigurationError("storage.format must be csv or json.")
 
 
 def _require_positive_int(value: Any, field_name: str) -> None:

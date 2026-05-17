@@ -6,6 +6,7 @@ from typing import Literal
 
 VideoSourceType = Literal["camera", "file", "picamera2"]
 ModelRuntime = Literal["mock", "tflite"]
+StorageFormat = Literal["csv", "json"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,6 +49,7 @@ class StorageSettings:
     save_detections: bool
     save_frames: bool
     output_dir: str
+    format: StorageFormat = "csv"
 
 
 @dataclass(frozen=True, slots=True)
