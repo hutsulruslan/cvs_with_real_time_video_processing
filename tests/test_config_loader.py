@@ -16,6 +16,12 @@ from edge_vision.config.config_loader import load_config, parse_config_data
 from edge_vision.core.errors import ConfigurationError
 
 
+def test_project_default_config_uses_mock_runtime() -> None:
+    settings = load_config(PROJECT_ROOT / "config.yaml")
+
+    assert settings.model.runtime == "mock"
+
+
 def test_load_config_returns_typed_settings(tmp_path: Path) -> None:
     config_path = tmp_path / "config.yaml"
     config_path.write_text(_valid_config_yaml(), encoding="utf-8")

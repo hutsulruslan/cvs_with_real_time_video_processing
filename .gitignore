@@ -50,6 +50,7 @@ output/
 # Large local media/model artifacts
 # Keep placeholder files if needed by adding exceptions later.
 assets/models/*.tflite
+assets/models/*.lite
 assets/models/*.onnx
 assets/models/*.pb
 assets/models/*.pt

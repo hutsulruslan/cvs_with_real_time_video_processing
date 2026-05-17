@@ -90,6 +90,7 @@ TFLite detector foundation is implemented:
 - lazy TFLite runtime loading;
 - `labels.txt` loading;
 - SSD/EfficientDet-style output conversion to `Detection` objects;
+- model tensor inspection helper;
 - tests with fake interpreter, without a real model file.
 
 ## Environment
@@ -139,13 +140,53 @@ The current runnable mode uses `MockObjectDetector`. It is useful for checking
 the video, preprocessing, postprocessing, metrics, renderer, and display path
 before the real TFLite detector is connected.
 
-TFLite mode can be enabled later by placing a compatible `.tflite` model and
-`labels.txt` file under the paths configured in `config.yaml`, then changing:
+## TFLite Model Files
+
+The project runs in mock mode by default. Real TFLite mode is optional and
+requires local model files that are not committed to git.
+
+Expected local paths:
+
+```text
+assets/models/model.tflite
+assets/models/labels.txt
+```
+
+Model binaries are ignored by `.gitignore` to avoid accidental commits.
+
+To enable TFLite mode later, place a compatible model and labels file under the
+paths above, install a TFLite/LiteRT-compatible runtime, then change:
 
 ```yaml
 model:
   runtime: "tflite"
+  model_path: "assets/models/model.tflite"
+  labels_path: "assets/models/labels.txt"
 ```
+
+Validate configuration without opening a camera:
+
+```powershell
+python main.py --check-config
+```
+
+Inspect model tensors before running the visual application:
+
+```powershell
+$env:PYTHONPATH = "src"
+python -m edge_vision.inference.model_inspector assets/models/model.tflite
+```
+
+The current detector supports only SSD/EfficientDet-style TFLite object
+detection outputs:
+
+- boxes;
+- classes;
+- scores;
+- num_detections.
+
+The expected box format is normalized `[y_min, x_min, y_max, x_max]`.
+YOLO-style outputs are not supported by the current detector.
 
 Phone camera testing can be done later by exposing the phone as a virtual camera
 or by adding a dedicated stream source. The Phase 2 camera source already supports
