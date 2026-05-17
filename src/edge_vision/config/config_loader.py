@@ -117,8 +117,8 @@ def _validate_settings(settings: AppSettings) -> None:
     _require_positive_int(settings.video.height, "video.height")
     _require_text(settings.video.file_path, "video.file_path")
 
-    if settings.model.runtime != "tflite":
-        raise ConfigurationError("model.runtime must be tflite.")
+    if settings.model.runtime not in {"mock", "tflite"}:
+        raise ConfigurationError("model.runtime must be mock or tflite.")
     _require_text(settings.model.model_path, "model.model_path")
     _require_text(settings.model.labels_path, "model.labels_path")
     _require_positive_int(settings.model.input_width, "model.input_width")

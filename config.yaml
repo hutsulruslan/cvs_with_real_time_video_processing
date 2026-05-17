@@ -6,7 +6,7 @@ video:
   height: 480
 
 model:
-  runtime: "tflite"
+  runtime: "mock"
   model_path: "assets/models/model.tflite"
   labels_path: "assets/models/labels.txt"
   input_width: 320

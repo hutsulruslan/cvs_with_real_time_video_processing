@@ -5,7 +5,7 @@ from typing import Literal
 
 
 VideoSourceType = Literal["camera", "file", "picamera2"]
-ModelRuntime = Literal["tflite"]
+ModelRuntime = Literal["mock", "tflite"]
 
 
 @dataclass(frozen=True, slots=True)

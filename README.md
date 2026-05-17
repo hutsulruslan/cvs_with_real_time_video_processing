@@ -77,7 +77,20 @@ Minimal visual application wrapper is implemented:
 - dependency-injected source, pipeline, renderer, and display;
 - tests with fake source/display and no real camera or GUI window.
 
-The full video processing pipeline is intentionally not implemented yet.
+Runnable mock visual mode is implemented:
+
+- `main.py` builds the application from `config.yaml`;
+- `model.runtime: "mock"` uses deterministic mock detections;
+- the OpenCV window can be closed with `q`.
+
+No model files are included in the repository yet.
+
+TFLite detector foundation is implemented:
+
+- lazy TFLite runtime loading;
+- `labels.txt` loading;
+- SSD/EfficientDet-style output conversion to `Detection` objects;
+- tests with fake interpreter, without a real model file.
 
 ## Environment
 
@@ -116,9 +129,23 @@ Or use a custom configuration file:
 python main.py --config config.yaml
 ```
 
-At this stage the command only validates and loads configuration. Later phases
-will connect the video source, preprocessing, inference, visualization, metrics,
-and optional storage modules.
+To validate configuration without opening a camera or window:
+
+```powershell
+python main.py --check-config
+```
+
+The current runnable mode uses `MockObjectDetector`. It is useful for checking
+the video, preprocessing, postprocessing, metrics, renderer, and display path
+before the real TFLite detector is connected.
+
+TFLite mode can be enabled later by placing a compatible `.tflite` model and
+`labels.txt` file under the paths configured in `config.yaml`, then changing:
+
+```yaml
+model:
+  runtime: "tflite"
+```
 
 Phone camera testing can be done later by exposing the phone as a virtual camera
 or by adding a dedicated stream source. The Phase 2 camera source already supports

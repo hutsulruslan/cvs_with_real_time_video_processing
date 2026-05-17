@@ -24,7 +24,7 @@ def test_load_config_returns_typed_settings(tmp_path: Path) -> None:
 
     assert settings.video.source_type == "camera"
     assert settings.video.width == 640
-    assert settings.model.runtime == "tflite"
+    assert settings.model.runtime == "mock"
     assert settings.model.confidence_threshold == 0.4
     assert settings.processing.max_detections == 20
     assert settings.display.window_name == "Edge Vision System"
@@ -55,6 +55,15 @@ def test_parse_config_rejects_invalid_threshold() -> None:
         parse_config_data(raw_config)
 
 
+def test_parse_config_accepts_tflite_runtime_for_future_detector() -> None:
+    raw_config = _valid_config_dict()
+    raw_config["model"]["runtime"] = "tflite"
+
+    settings = parse_config_data(raw_config)
+
+    assert settings.model.runtime == "tflite"
+
+
 def _valid_config_yaml() -> str:
     return dedent(
         """
@@ -66,7 +75,7 @@ def _valid_config_yaml() -> str:
           height: 480
 
         model:
-          runtime: "tflite"
+          runtime: "mock"
           model_path: "assets/models/model.tflite"
           labels_path: "assets/models/labels.txt"
           input_width: 320
@@ -102,7 +111,7 @@ def _valid_config_dict() -> dict:
             "height": 480,
         },
         "model": {
-            "runtime": "tflite",
+            "runtime": "mock",
             "model_path": "assets/models/model.tflite",
             "labels_path": "assets/models/labels.txt",
             "input_width": 320,
