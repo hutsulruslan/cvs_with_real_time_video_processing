@@ -9,7 +9,15 @@ SRC_ROOT = PROJECT_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-from edge_vision.app.runner import run_cli
+from edge_vision.app.runner import build_arg_parser, run_cli
+from edge_vision.core.detection import Detection
+from edge_vision.core.result import FrameResult
+
+
+def test_run_cli_parser_accepts_report_flag() -> None:
+    args = build_arg_parser("config.yaml").parse_args(["--report"])
+
+    assert args.report is True
 
 
 def test_run_cli_check_config_applies_profile_without_opening_app(
@@ -24,6 +32,40 @@ def test_run_cli_check_config_applies_profile_without_opening_app(
 
     assert exit_code == 0
     assert "source: file" in capsys.readouterr().out
+
+
+def test_run_cli_report_mode_prints_summary_without_display(
+    tmp_path: Path,
+    capsys,
+    monkeypatch,
+) -> None:
+    config_path = _write_config(tmp_path)
+
+    monkeypatch.setattr(
+        "edge_vision.app.runner.create_application",
+        _fake_application_factory,
+    )
+
+    exit_code = run_cli(
+        [
+            "--config",
+            str(config_path),
+            "--profile",
+            "mock-file",
+            "--max-frames",
+            "2",
+            "--no-display",
+            "--report",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "Processed frames: 2" in output
+    assert "Performance report:" in output
+    assert "processed_frames: 2" in output
+    assert "total_detections: 3" in output
+    assert "average_fps: 15.00" in output
 
 
 def test_run_cli_rejects_unbounded_headless_camera_run(tmp_path: Path, capsys) -> None:
@@ -133,3 +175,36 @@ storage:
         encoding="utf-8",
     )
     return config_path
+
+
+def _fake_application_factory(*args, **kwargs) -> "FakeApplication":
+    assert kwargs["max_frames"] == 2
+    assert kwargs["no_display"] is True
+    return FakeApplication(kwargs["result_callback"])
+
+
+class FakeApplication:
+    def __init__(self, result_callback) -> None:
+        self._result_callback = result_callback
+
+    def run(self) -> int:
+        self._result_callback(_result(1, 1, 10.0, 5.0, 30.0))
+        self._result_callback(_result(2, 2, 20.0, 15.0, 50.0))
+        return 2
+
+
+def _result(
+    frame_id: int,
+    detections: int,
+    fps: float,
+    inference_ms: float,
+    total_frame_ms: float,
+) -> FrameResult:
+    return FrameResult(
+        frame_id=frame_id,
+        timestamp_ms=float(frame_id),
+        detections=[Detection(index, "object", 0.9, 1, 2, 3, 4) for index in range(detections)],
+        fps=fps,
+        inference_ms=inference_ms,
+        total_frame_ms=total_frame_ms,
+    )

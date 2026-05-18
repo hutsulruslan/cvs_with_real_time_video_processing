@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Callable
+
 from edge_vision.app.pipeline import ProcessingPipeline
 from edge_vision.core.frame import FramePacket
 from edge_vision.core.result import FrameResult
@@ -20,6 +22,7 @@ class EdgeVisionApplication:
         display: WindowDisplay | None,
         max_frames: int | None = None,
         result_writer: ResultWriter | None = None,
+        result_callback: Callable[[FrameResult], None] | None = None,
     ) -> None:
         if max_frames is not None and max_frames < 0:
             raise ValueError("max_frames must be non-negative or None.")
@@ -33,6 +36,7 @@ class EdgeVisionApplication:
         self._display = display
         self._max_frames = max_frames
         self._result_writer = result_writer
+        self._result_callback = result_callback
 
     def run(self) -> int:
         """Run a controlled visual processing loop and return processed frames."""
@@ -47,6 +51,8 @@ class EdgeVisionApplication:
                 result = self._processing_pipeline.process_frame(frame_packet)
                 if self._result_writer is not None:
                     self._result_writer.write(result)
+                if self._result_callback is not None:
+                    self._result_callback(result)
                 processed_frames += 1
                 if self._should_stop_for_display(frame_packet, result):
                     break

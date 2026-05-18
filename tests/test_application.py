@@ -129,6 +129,20 @@ def test_application_can_run_without_display() -> None:
     assert writer.closed is True
 
 
+def test_application_reports_results_through_callback() -> None:
+    reported_results: list[FrameResult] = []
+
+    processed_count = _application(
+        FakeVideoSource([_packet(1), _packet(2)]),
+        pipeline=FakePipeline(),
+        display=FakeDisplay(),
+        result_callback=reported_results.append,
+    ).run()
+
+    assert processed_count == 2
+    assert [result.frame_id for result in reported_results] == [1, 2]
+
+
 class FakeVideoSource:
     def __init__(self, packets: list[FramePacket]) -> None:
         self._packets = list(packets)
@@ -202,6 +216,7 @@ def _application(
     display=None,
     max_frames=None,
     result_writer=None,
+    result_callback=None,
 ) -> EdgeVisionApplication:
     return EdgeVisionApplication(
         source,
@@ -210,6 +225,7 @@ def _application(
         display or FakeDisplay(),
         max_frames,
         result_writer,
+        result_callback,
     )
 
 def _mock_processing_pipeline() -> ProcessingPipeline:

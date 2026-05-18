@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from typing import Callable
+
 from edge_vision.app.application import EdgeVisionApplication
 from edge_vision.app.pipeline import ProcessingPipeline
 from edge_vision.config.settings import AppSettings
 from edge_vision.core.errors import ApplicationError
+from edge_vision.core.result import FrameResult
 from edge_vision.inference.detector import ObjectDetector
 from edge_vision.inference.mock_detector import MockObjectDetector
 from edge_vision.inference.tflite_detector import TFLiteObjectDetector
@@ -25,6 +28,7 @@ def create_application(
     display: WindowDisplay | None = None,
     max_frames: int | None = None,
     no_display: bool = False,
+    result_callback: Callable[[FrameResult], None] | None = None,
 ) -> EdgeVisionApplication:
     """Create the current visual MVP application from typed settings."""
     if not no_display and not settings.display.show_window:
@@ -41,6 +45,7 @@ def create_application(
         ),
         max_frames=max_frames,
         result_writer=create_result_writer(settings.storage),
+        result_callback=result_callback,
     )
 
 

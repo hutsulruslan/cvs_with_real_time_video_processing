@@ -15,6 +15,10 @@ from edge_vision.app.run_overrides import (
 )
 from edge_vision.config.config_loader import load_config
 from edge_vision.core.errors import EdgeVisionError
+from edge_vision.metrics.performance_report import (
+    PerformanceReportBuilder,
+    format_performance_report,
+)
 
 
 def run_cli(
@@ -35,10 +39,12 @@ def run_cli(
             return 0
 
         validate_run_overrides(settings, overrides)
+        report_builder = PerformanceReportBuilder() if args.report else None
         application = create_application(
             settings,
             max_frames=overrides.max_frames,
             no_display=overrides.no_display,
+            result_callback=None if report_builder is None else report_builder.add_result,
         )
         processed_frames = application.run()
     except EdgeVisionError as error:
@@ -46,6 +52,8 @@ def run_cli(
         return 1
 
     print(f"Processed frames: {processed_frames}")
+    if report_builder is not None:
+        print(format_performance_report(report_builder.build()))
     return 0
 
 
@@ -75,6 +83,11 @@ def build_arg_parser(default_config_path: str | Path) -> argparse.ArgumentParser
         "--no-display",
         action="store_true",
         help="Process frames without opening an OpenCV window.",
+    )
+    parser.add_argument(
+        "--report",
+        action="store_true",
+        help="Print a performance summary after the run.",
     )
     return parser
 
