@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Sequence
 
 from edge_vision.app.application_factory import create_application
+from edge_vision.app.preflight import format_preflight_report, run_preflight
 from edge_vision.app.run_overrides import (
     PROFILE_SETTINGS,
     RunOverrides,
@@ -38,6 +39,11 @@ def run_cli(
             print(f"Configuration loaded for source: {settings.video.source_type}")
             return 0
 
+        if args.preflight:
+            report = run_preflight(settings, overrides)
+            print(format_preflight_report(report))
+            return 0 if report.is_ok else 1
+
         validate_run_overrides(settings, overrides)
         report_builder = PerformanceReportBuilder() if args.report else None
         application = create_application(
@@ -69,6 +75,11 @@ def build_arg_parser(default_config_path: str | Path) -> argparse.ArgumentParser
         "--check-config",
         action="store_true",
         help="Only validate configuration and exit.",
+    )
+    parser.add_argument(
+        "--preflight",
+        action="store_true",
+        help="Run diagnostics for the selected profile and exit.",
     )
     parser.add_argument(
         "--profile",

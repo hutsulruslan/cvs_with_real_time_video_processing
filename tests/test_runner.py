@@ -10,6 +10,7 @@ if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
 from edge_vision.app.runner import build_arg_parser, run_cli
+from edge_vision.app.preflight import PreflightCheckResult, PreflightReport
 from edge_vision.core.detection import Detection
 from edge_vision.core.result import FrameResult
 
@@ -18,6 +19,12 @@ def test_run_cli_parser_accepts_report_flag() -> None:
     args = build_arg_parser("config.yaml").parse_args(["--report"])
 
     assert args.report is True
+
+
+def test_run_cli_parser_accepts_preflight_flag() -> None:
+    args = build_arg_parser("config.yaml").parse_args(["--preflight"])
+
+    assert args.preflight is True
 
 
 def test_run_cli_check_config_applies_profile_without_opening_app(
@@ -32,6 +39,38 @@ def test_run_cli_check_config_applies_profile_without_opening_app(
 
     assert exit_code == 0
     assert "source: file" in capsys.readouterr().out
+
+
+def test_run_cli_preflight_prints_report_without_opening_app(
+    tmp_path: Path,
+    capsys,
+    monkeypatch,
+) -> None:
+    config_path = _write_config(tmp_path)
+
+    monkeypatch.setattr(
+        "edge_vision.app.runner.create_application",
+        _raise_if_application_is_created,
+    )
+    monkeypatch.setattr("edge_vision.app.runner.run_preflight", _fake_preflight)
+
+    exit_code = run_cli(
+        [
+            "--config",
+            str(config_path),
+            "--preflight",
+            "--profile",
+            "mock-camera",
+            "--max-frames",
+            "1",
+            "--no-display",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "Preflight report:" in output
+    assert "Result: OK" in output
 
 
 def test_run_cli_report_mode_prints_summary_without_display(
@@ -181,6 +220,14 @@ def _fake_application_factory(*args, **kwargs) -> "FakeApplication":
     assert kwargs["max_frames"] == 2
     assert kwargs["no_display"] is True
     return FakeApplication(kwargs["result_callback"])
+
+
+def _raise_if_application_is_created(*args, **kwargs) -> None:
+    raise AssertionError("preflight must not create the application")
+
+
+def _fake_preflight(*args, **kwargs) -> PreflightReport:
+    return PreflightReport([PreflightCheckResult("config", True, "configuration loaded")])
 
 
 class FakeApplication:
