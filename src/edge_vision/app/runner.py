@@ -65,10 +65,11 @@ def build_arg_parser(default_config_path: str | Path) -> argparse.ArgumentParser
     parser.add_argument(
         "--profile",
         choices=tuple(PROFILE_SETTINGS),
-        help="Runtime profile: mock-file, mock-camera, tflite-file, or tflite-camera.",
+        help="Runtime profile, for example mock-file or tflite-stream.",
     )
     parser.add_argument("--camera-index", type=int, help="Override video.camera_index.")
     parser.add_argument("--file-path", help="Override video.file_path.")
+    parser.add_argument("--stream-url", help="Override video.stream_url.")
     parser.add_argument("--max-frames", type=int, help="Stop after N processed frames.")
     parser.add_argument(
         "--no-display",
@@ -83,6 +84,7 @@ def _overrides_from_args(args: argparse.Namespace) -> RunOverrides:
         profile=args.profile,
         camera_index=args.camera_index,
         file_path=args.file_path,
+        stream_url=args.stream_url,
         max_frames=args.max_frames,
         no_display=args.no_display,
     )

@@ -63,6 +63,7 @@ def parse_config_data(raw_data: Any) -> AppSettings:
             file_path=sections["video"]["file_path"],
             width=sections["video"]["width"],
             height=sections["video"]["height"],
+            stream_url=sections["video"].get("stream_url", ""),
         ),
         model=ModelSettings(
             runtime=sections["model"]["runtime"],
@@ -112,12 +113,17 @@ def _require_fields(
 
 
 def _validate_settings(settings: AppSettings) -> None:
-    if settings.video.source_type not in {"camera", "file", "picamera2"}:
-        raise ConfigurationError("video.source_type must be camera, file, or picamera2.")
+    if settings.video.source_type not in {"camera", "file", "stream", "picamera2"}:
+        raise ConfigurationError(
+            "video.source_type must be camera, file, stream, or picamera2."
+        )
     _require_non_negative_int(settings.video.camera_index, "video.camera_index")
     _require_positive_int(settings.video.width, "video.width")
     _require_positive_int(settings.video.height, "video.height")
     _require_text(settings.video.file_path, "video.file_path")
+    _require_optional_text(settings.video.stream_url, "video.stream_url")
+    if settings.video.source_type == "stream":
+        _require_text(settings.video.stream_url, "video.stream_url")
 
     if settings.model.runtime not in {"mock", "tflite"}:
         raise ConfigurationError("model.runtime must be mock or tflite.")
@@ -169,3 +175,8 @@ def _require_bool(value: Any, field_name: str) -> None:
 def _require_text(value: Any, field_name: str) -> None:
     if not isinstance(value, str) or not value.strip():
         raise ConfigurationError(f"{field_name} must be a non-empty string.")
+
+
+def _require_optional_text(value: Any, field_name: str) -> None:
+    if not isinstance(value, str):
+        raise ConfigurationError(f"{field_name} must be a string.")

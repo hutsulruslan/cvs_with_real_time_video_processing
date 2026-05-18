@@ -17,6 +17,7 @@ from edge_vision.core.errors import VideoSourceError
 from edge_vision.video.opencv_camera_source import OpenCVCameraSource
 from edge_vision.video.source_factory import create_video_source
 from edge_vision.video.video_file_source import VideoFileSource
+from edge_vision.video.video_stream_source import VideoStreamSource
 
 
 def test_camera_source_reads_frames_and_releases_capture() -> None:
@@ -103,9 +104,18 @@ def test_create_video_source_uses_configured_source_type() -> None:
         width=640,
         height=480,
     )
+    stream_settings = VideoSettings(
+        source_type="stream",
+        camera_index=0,
+        file_path="assets/samples/sample_video.mp4",
+        width=640,
+        height=480,
+        stream_url="http://example.local:8080/video",
+    )
 
     assert isinstance(create_video_source(camera_settings), OpenCVCameraSource)
     assert isinstance(create_video_source(file_settings), VideoFileSource)
+    assert isinstance(create_video_source(stream_settings), VideoStreamSource)
 
 
 def test_create_video_source_keeps_picamera2_explicitly_unimplemented() -> None:

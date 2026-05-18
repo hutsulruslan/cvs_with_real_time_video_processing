@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 
-VideoSourceType = Literal["camera", "file", "picamera2"]
+VideoSourceType = Literal["camera", "file", "stream", "picamera2"]
 ModelRuntime = Literal["mock", "tflite"]
 StorageFormat = Literal["csv", "json"]
 
@@ -16,6 +16,7 @@ class VideoSettings:
     file_path: str
     width: int
     height: int
+    stream_url: str = ""
 
 
 @dataclass(frozen=True, slots=True)

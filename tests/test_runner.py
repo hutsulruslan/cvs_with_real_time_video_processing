@@ -37,6 +37,25 @@ def test_run_cli_rejects_unbounded_headless_camera_run(tmp_path: Path, capsys) -
     assert "requires --max-frames" in capsys.readouterr().err
 
 
+def test_run_cli_rejects_unbounded_headless_stream_run(tmp_path: Path, capsys) -> None:
+    config_path = _write_config(tmp_path)
+
+    exit_code = run_cli(
+        [
+            "--config",
+            str(config_path),
+            "--profile",
+            "mock-stream",
+            "--stream-url",
+            "http://example.local:8080/video",
+            "--no-display",
+        ]
+    )
+
+    assert exit_code == 1
+    assert "requires --max-frames" in capsys.readouterr().err
+
+
 def test_run_cli_check_config_rejects_negative_max_frames(
     tmp_path: Path,
     capsys,
@@ -51,6 +70,28 @@ def test_run_cli_check_config_rejects_negative_max_frames(
     assert "--max-frames must be non-negative" in capsys.readouterr().err
 
 
+def test_run_cli_check_config_applies_stream_profile_and_url(
+    tmp_path: Path,
+    capsys,
+) -> None:
+    config_path = _write_config(tmp_path)
+
+    exit_code = run_cli(
+        [
+            "--config",
+            str(config_path),
+            "--check-config",
+            "--profile",
+            "mock-stream",
+            "--stream-url",
+            "http://example.local:8080/video",
+        ]
+    )
+
+    assert exit_code == 0
+    assert "source: stream" in capsys.readouterr().out
+
+
 def _write_config(tmp_path: Path) -> Path:
     config_path = tmp_path / "config.yaml"
     config_path.write_text(
@@ -59,6 +100,7 @@ video:
   source_type: "camera"
   camera_index: 0
   file_path: "assets/samples/sample_video.mp4"
+  stream_url: ""
   width: 640
   height: 480
 

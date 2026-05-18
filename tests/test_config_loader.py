@@ -30,6 +30,7 @@ def test_load_config_returns_typed_settings(tmp_path: Path) -> None:
 
     assert settings.video.source_type == "camera"
     assert settings.video.width == 640
+    assert settings.video.stream_url == ""
     assert settings.model.runtime == "mock"
     assert settings.model.confidence_threshold == 0.4
     assert settings.model.normalize is False
@@ -49,9 +50,28 @@ def test_parse_config_rejects_missing_section() -> None:
 
 def test_parse_config_rejects_invalid_source_type() -> None:
     raw_config = _valid_config_dict()
-    raw_config["video"]["source_type"] = "stream"
+    raw_config["video"]["source_type"] = "udp"
 
     with pytest.raises(ConfigurationError, match="source_type"):
+        parse_config_data(raw_config)
+
+
+def test_parse_config_accepts_stream_source_with_stream_url() -> None:
+    raw_config = _valid_config_dict()
+    raw_config["video"]["source_type"] = "stream"
+    raw_config["video"]["stream_url"] = "http://example.local:8080/video"
+
+    settings = parse_config_data(raw_config)
+
+    assert settings.video.source_type == "stream"
+    assert settings.video.stream_url == "http://example.local:8080/video"
+
+
+def test_parse_config_rejects_stream_source_without_stream_url() -> None:
+    raw_config = _valid_config_dict()
+    raw_config["video"]["source_type"] = "stream"
+
+    with pytest.raises(ConfigurationError, match="video.stream_url"):
         parse_config_data(raw_config)
 
 
@@ -113,6 +133,7 @@ def _valid_config_yaml() -> str:
           source_type: "camera"
           camera_index: 0
           file_path: "assets/samples/sample_video.mp4"
+          stream_url: ""
           width: 640
           height: 480
 
