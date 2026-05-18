@@ -24,16 +24,21 @@ def create_application(
     video_source: VideoSource | None = None,
     display: WindowDisplay | None = None,
     max_frames: int | None = None,
+    no_display: bool = False,
 ) -> EdgeVisionApplication:
     """Create the current visual MVP application from typed settings."""
-    if not settings.display.show_window:
+    if not no_display and not settings.display.show_window:
         raise ApplicationError("Visual mode requires display.show_window to be true.")
 
     return EdgeVisionApplication(
         video_source=video_source or create_video_source(settings.video),
         processing_pipeline=create_processing_pipeline(settings),
-        renderer=Renderer(show_fps=settings.display.show_fps),
-        display=display or WindowDisplay(window_name=settings.display.window_name),
+        renderer=None if no_display else Renderer(show_fps=settings.display.show_fps),
+        display=(
+            None
+            if no_display
+            else display or WindowDisplay(window_name=settings.display.window_name)
+        ),
         max_frames=max_frames,
         result_writer=create_result_writer(settings.storage),
     )

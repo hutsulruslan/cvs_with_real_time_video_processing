@@ -59,6 +59,20 @@ def test_create_application_rejects_disabled_window_for_visual_mode() -> None:
         create_application(_settings(show_window=False), video_source=FakeVideoSource([]), display=FakeDisplay())
 
 
+def test_create_application_allows_disabled_window_for_headless_mode() -> None:
+    source = FakeVideoSource([_packet()])
+
+    processed_frames = create_application(
+        _settings(show_window=False),
+        video_source=source,
+        no_display=True,
+        max_frames=1,
+    ).run()
+
+    assert processed_frames == 1
+    assert source.released is True
+
+
 def test_create_application_saves_results_when_storage_is_enabled(tmp_path: Path) -> None:
     source = FakeVideoSource([_packet()])
     display = FakeDisplay()

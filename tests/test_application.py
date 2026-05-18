@@ -108,6 +108,27 @@ def test_application_with_zero_max_frames_only_opens_and_closes() -> None:
     assert writer.closed is True
 
 
+def test_application_can_run_without_display() -> None:
+    source = FakeVideoSource([_packet(1), _packet(2)])
+    pipeline = FakePipeline()
+    writer = FakeResultWriter()
+
+    processed_count = EdgeVisionApplication(
+        video_source=source,
+        processing_pipeline=pipeline,
+        renderer=None,
+        display=None,
+        max_frames=2,
+        result_writer=writer,
+    ).run()
+
+    assert processed_count == 2
+    assert [packet.frame_id for packet in pipeline.received_packets] == [1, 2]
+    assert [result.frame_id for result in writer.results] == [1, 2]
+    assert source.released is True
+    assert writer.closed is True
+
+
 class FakeVideoSource:
     def __init__(self, packets: list[FramePacket]) -> None:
         self._packets = list(packets)

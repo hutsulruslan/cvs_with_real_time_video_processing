@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from edge_vision.app.pipeline import ProcessingPipeline
+from edge_vision.core.frame import FramePacket
+from edge_vision.core.result import FrameResult
 from edge_vision.storage.result_writer import ResultWriter
 from edge_vision.video.video_source import VideoSource
 from edge_vision.visualization.renderer import Renderer
@@ -14,13 +16,17 @@ class EdgeVisionApplication:
         self,
         video_source: VideoSource,
         processing_pipeline: ProcessingPipeline,
-        renderer: Renderer,
-        display: WindowDisplay,
+        renderer: Renderer | None,
+        display: WindowDisplay | None,
         max_frames: int | None = None,
         result_writer: ResultWriter | None = None,
     ) -> None:
         if max_frames is not None and max_frames < 0:
             raise ValueError("max_frames must be non-negative or None.")
+        if (renderer is None) != (display is None):
+            raise ValueError(
+                "renderer and display must either both be set or both be None."
+            )
         self._video_source = video_source
         self._processing_pipeline = processing_pipeline
         self._renderer = renderer
@@ -41,17 +47,13 @@ class EdgeVisionApplication:
                 result = self._processing_pipeline.process_frame(frame_packet)
                 if self._result_writer is not None:
                     self._result_writer.write(result)
-                rendered_frame = self._renderer.render(
-                    frame_packet.original_frame,
-                    result.detections,
-                    fps=result.fps,
-                )
                 processed_frames += 1
-                if self._display.show(rendered_frame):
+                if self._should_stop_for_display(frame_packet, result):
                     break
         finally:
             self._video_source.release()
-            self._display.close()
+            if self._display is not None:
+                self._display.close()
             if self._result_writer is not None:
                 self._result_writer.close()
 
@@ -61,3 +63,18 @@ class EdgeVisionApplication:
         if self._max_frames is None:
             return True
         return processed_frames < self._max_frames
+
+    def _should_stop_for_display(
+        self,
+        frame_packet: FramePacket,
+        result: FrameResult,
+    ) -> bool:
+        if self._renderer is None or self._display is None:
+            return False
+
+        rendered_frame = self._renderer.render(
+            frame_packet.original_frame,
+            result.detections,
+            fps=result.fps,
+        )
+        return self._display.show(rendered_frame)
