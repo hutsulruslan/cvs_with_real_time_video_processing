@@ -27,6 +27,32 @@ def test_run_cli_parser_accepts_preflight_flag() -> None:
     assert args.preflight is True
 
 
+def test_run_cli_parser_accepts_low_light_and_confidence_overrides() -> None:
+    args = build_arg_parser("config.yaml").parse_args(
+        [
+            "--low-light",
+            "gamma_clahe",
+            "--gamma",
+            "2.0",
+            "--brightness-threshold",
+            "90",
+            "--clahe-clip-limit",
+            "3.0",
+            "--clahe-tile-grid-size",
+            "8",
+            "--confidence-threshold",
+            "0.25",
+        ]
+    )
+
+    assert args.low_light == "gamma_clahe"
+    assert args.gamma == 2.0
+    assert args.brightness_threshold == 90
+    assert args.clahe_clip_limit == 3.0
+    assert args.clahe_tile_grid_size == 8
+    assert args.confidence_threshold == 0.25
+
+
 def test_run_cli_check_config_applies_profile_without_opening_app(
     tmp_path: Path,
     capsys,
@@ -39,6 +65,34 @@ def test_run_cli_check_config_applies_profile_without_opening_app(
 
     assert exit_code == 0
     assert "source: file" in capsys.readouterr().out
+
+
+def test_run_cli_check_config_accepts_low_light_and_confidence_overrides(
+    tmp_path: Path,
+    capsys,
+) -> None:
+    config_path = _write_config(tmp_path)
+    original_config = config_path.read_text(encoding="utf-8")
+
+    exit_code = run_cli(
+        [
+            "--config",
+            str(config_path),
+            "--check-config",
+            "--low-light",
+            "auto",
+            "--gamma",
+            "1.8",
+            "--brightness-threshold",
+            "90",
+            "--confidence-threshold",
+            "0.25",
+        ]
+    )
+
+    assert exit_code == 0
+    assert "source: camera" in capsys.readouterr().out
+    assert config_path.read_text(encoding="utf-8") == original_config
 
 
 def test_run_cli_preflight_prints_report_without_opening_app(
@@ -149,6 +203,20 @@ def test_run_cli_check_config_rejects_negative_max_frames(
 
     assert exit_code == 1
     assert "--max-frames must be non-negative" in capsys.readouterr().err
+
+
+def test_run_cli_check_config_rejects_invalid_confidence_threshold(
+    tmp_path: Path,
+    capsys,
+) -> None:
+    config_path = _write_config(tmp_path)
+
+    exit_code = run_cli(
+        ["--config", str(config_path), "--check-config", "--confidence-threshold", "1.1"]
+    )
+
+    assert exit_code == 1
+    assert "--confidence-threshold" in capsys.readouterr().err
 
 
 def test_run_cli_check_config_applies_stream_profile_and_url(

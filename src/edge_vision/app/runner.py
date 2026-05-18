@@ -91,6 +91,32 @@ def build_arg_parser(default_config_path: str | Path) -> argparse.ArgumentParser
     parser.add_argument("--stream-url", help="Override video.stream_url.")
     parser.add_argument("--max-frames", type=int, help="Stop after N processed frames.")
     parser.add_argument(
+        "--low-light",
+        choices=("off", "gamma", "clahe", "gamma_clahe", "auto"),
+        help="Override preprocessing.low_light mode for this run.",
+    )
+    parser.add_argument("--gamma", type=float, help="Override low-light gamma.")
+    parser.add_argument(
+        "--brightness-threshold",
+        type=float,
+        help="Override auto low-light brightness threshold.",
+    )
+    parser.add_argument(
+        "--clahe-clip-limit",
+        type=float,
+        help="Override CLAHE clip limit.",
+    )
+    parser.add_argument(
+        "--clahe-tile-grid-size",
+        type=int,
+        help="Override CLAHE tile grid size.",
+    )
+    parser.add_argument(
+        "--confidence-threshold",
+        type=float,
+        help="Override model confidence threshold.",
+    )
+    parser.add_argument(
         "--no-display",
         action="store_true",
         help="Process frames without opening an OpenCV window.",
@@ -111,4 +137,10 @@ def _overrides_from_args(args: argparse.Namespace) -> RunOverrides:
         stream_url=args.stream_url,
         max_frames=args.max_frames,
         no_display=args.no_display,
+        low_light=args.low_light,
+        gamma=args.gamma,
+        brightness_threshold=args.brightness_threshold,
+        clahe_clip_limit=args.clahe_clip_limit,
+        clahe_tile_grid_size=args.clahe_tile_grid_size,
+        confidence_threshold=args.confidence_threshold,
     )
