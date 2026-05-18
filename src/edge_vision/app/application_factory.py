@@ -52,7 +52,10 @@ def create_application(
 def create_processing_pipeline(settings: AppSettings) -> ProcessingPipeline:
     """Create the processing pipeline for the configured detector runtime."""
     return ProcessingPipeline(
-        preprocessor=FramePreprocessor.from_model_settings(settings.model),
+        preprocessor=FramePreprocessor.from_model_settings(
+            settings.model,
+            low_light_settings=settings.low_light,
+        ),
         detector=_create_detector(settings),
         postprocessor=DetectionPostProcessor(
             confidence_threshold=settings.model.confidence_threshold,

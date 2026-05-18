@@ -8,6 +8,7 @@ import yaml
 from edge_vision.config.settings import (
     AppSettings,
     DisplaySettings,
+    LowLightSettings,
     ModelSettings,
     ProcessingSettings,
     StorageSettings,
@@ -91,6 +92,7 @@ def parse_config_data(raw_data: Any) -> AppSettings:
             output_dir=sections["storage"]["output_dir"],
             format=sections["storage"].get("format", "csv"),
         ),
+        low_light=_parse_low_light_settings(raw_data),
     )
     _validate_settings(settings)
     return settings
@@ -149,6 +151,44 @@ def _validate_settings(settings: AppSettings) -> None:
     if settings.storage.format not in {"csv", "json"}:
         raise ConfigurationError("storage.format must be csv or json.")
 
+    _require_bool(settings.low_light.enabled, "preprocessing.low_light.enabled")
+    if settings.low_light.mode not in {"off", "gamma", "clahe", "gamma_clahe", "auto"}:
+        raise ConfigurationError(
+            "preprocessing.low_light.mode must be off, gamma, clahe, gamma_clahe, or auto."
+        )
+    _require_positive_number(settings.low_light.gamma, "preprocessing.low_light.gamma")
+    _require_non_negative_number(
+        settings.low_light.brightness_threshold,
+        "preprocessing.low_light.brightness_threshold",
+    )
+    _require_positive_number(
+        settings.low_light.clahe_clip_limit,
+        "preprocessing.low_light.clahe_clip_limit",
+    )
+    _require_positive_int(
+        settings.low_light.clahe_tile_grid_size,
+        "preprocessing.low_light.clahe_tile_grid_size",
+    )
+
+
+def _parse_low_light_settings(raw_data: Mapping[str, Any]) -> LowLightSettings:
+    preprocessing = raw_data.get("preprocessing", {})
+    if not isinstance(preprocessing, Mapping):
+        raise ConfigurationError("Missing or invalid 'preprocessing' section.")
+
+    low_light = preprocessing.get("low_light", {})
+    if not isinstance(low_light, Mapping):
+        raise ConfigurationError("Missing or invalid 'preprocessing.low_light' section.")
+
+    return LowLightSettings(
+        enabled=low_light.get("enabled", False),
+        mode=low_light.get("mode", "off"),
+        gamma=low_light.get("gamma", 1.5),
+        brightness_threshold=low_light.get("brightness_threshold", 65.0),
+        clahe_clip_limit=low_light.get("clahe_clip_limit", 2.0),
+        clahe_tile_grid_size=low_light.get("clahe_tile_grid_size", 8),
+    )
+
 
 def _require_positive_int(value: Any, field_name: str) -> None:
     if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
@@ -165,6 +205,16 @@ def _require_probability(value: Any, field_name: str) -> None:
         raise ConfigurationError(f"{field_name} must be a number from 0.0 to 1.0.")
     if value < 0.0 or value > 1.0:
         raise ConfigurationError(f"{field_name} must be between 0.0 and 1.0.")
+
+
+def _require_positive_number(value: Any, field_name: str) -> None:
+    if not isinstance(value, (int, float)) or isinstance(value, bool) or value <= 0:
+        raise ConfigurationError(f"{field_name} must be a positive number.")
+
+
+def _require_non_negative_number(value: Any, field_name: str) -> None:
+    if not isinstance(value, (int, float)) or isinstance(value, bool) or value < 0:
+        raise ConfigurationError(f"{field_name} must be a non-negative number.")
 
 
 def _require_bool(value: Any, field_name: str) -> None:

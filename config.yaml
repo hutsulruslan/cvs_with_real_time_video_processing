@@ -16,6 +16,15 @@ model:
   nms_threshold: 0.5
   normalize: false
 
+preprocessing:
+  low_light:
+    enabled: false
+    mode: "off"
+    gamma: 1.5
+    brightness_threshold: 65
+    clahe_clip_limit: 2.0
+    clahe_tile_grid_size: 8
+
 processing:
   frame_skip: 0
   enable_tracking: false

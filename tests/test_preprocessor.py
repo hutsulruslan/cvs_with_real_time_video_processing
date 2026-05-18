@@ -12,7 +12,7 @@ SRC_ROOT = PROJECT_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-from edge_vision.config.settings import ModelSettings
+from edge_vision.config.settings import LowLightSettings, ModelSettings
 from edge_vision.core.errors import PreprocessingError
 from edge_vision.core.frame import FramePacket
 from edge_vision.preprocessing.image_transform import (
@@ -97,6 +97,41 @@ def test_preprocessor_can_be_created_from_model_settings() -> None:
     assert preprocessor.input_width == 320
     assert preprocessor.input_height == 240
     assert preprocessor.normalize_input is True
+
+
+def test_preprocessor_accepts_low_light_settings_from_factory() -> None:
+    settings = ModelSettings(
+        runtime="tflite",
+        model_path="assets/models/model.tflite",
+        labels_path="assets/models/labels.txt",
+        input_width=2,
+        input_height=2,
+        confidence_threshold=0.4,
+        nms_threshold=0.5,
+        normalize=False,
+    )
+    low_light = LowLightSettings(enabled=True, mode="gamma", gamma=1.5)
+
+    preprocessor = FramePreprocessor.from_model_settings(settings, low_light)
+
+    assert preprocessor.low_light_settings == low_light
+
+
+def test_preprocess_with_low_light_keeps_uint8_tensor_when_not_normalized() -> None:
+    frame = np.full((4, 4, 3), 25, dtype=np.uint8)
+    packet = FramePacket(frame_id=1, timestamp_ms=10.0, original_frame=frame)
+    preprocessor = FramePreprocessor(
+        input_width=2,
+        input_height=2,
+        normalize_input=False,
+        low_light_settings=LowLightSettings(enabled=True, mode="gamma", gamma=1.5),
+    )
+
+    result = preprocessor.preprocess(packet)
+
+    assert result.input_tensor.shape == (1, 2, 2, 3)
+    assert result.input_tensor.dtype == np.uint8
+    assert result.input_tensor.mean() > frame.mean()
 
 
 def test_image_transform_helpers_prepare_expected_shapes_and_values() -> None:

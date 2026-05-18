@@ -20,6 +20,8 @@ def test_project_default_config_uses_mock_runtime() -> None:
     settings = load_config(PROJECT_ROOT / "config.yaml")
 
     assert settings.model.runtime == "mock"
+    assert settings.low_light.enabled is False
+    assert settings.low_light.mode == "off"
 
 
 def test_load_config_returns_typed_settings(tmp_path: Path) -> None:
@@ -34,6 +36,8 @@ def test_load_config_returns_typed_settings(tmp_path: Path) -> None:
     assert settings.model.runtime == "mock"
     assert settings.model.confidence_threshold == 0.4
     assert settings.model.normalize is False
+    assert settings.low_light.enabled is False
+    assert settings.low_light.mode == "off"
     assert settings.processing.max_detections == 20
     assert settings.display.window_name == "Edge Vision System"
     assert settings.storage.output_dir == "output"
@@ -109,6 +113,44 @@ def test_parse_config_rejects_invalid_model_normalization_flag() -> None:
         parse_config_data(raw_config)
 
 
+def test_parse_config_accepts_low_light_settings() -> None:
+    raw_config = _valid_config_dict()
+    raw_config["preprocessing"] = {
+        "low_light": {
+            "enabled": True,
+            "mode": "gamma_clahe",
+            "gamma": 1.8,
+            "brightness_threshold": 70,
+            "clahe_clip_limit": 3.0,
+            "clahe_tile_grid_size": 6,
+        }
+    }
+
+    settings = parse_config_data(raw_config)
+
+    assert settings.low_light.enabled is True
+    assert settings.low_light.mode == "gamma_clahe"
+    assert settings.low_light.gamma == 1.8
+    assert settings.low_light.brightness_threshold == 70
+    assert settings.low_light.clahe_clip_limit == 3.0
+    assert settings.low_light.clahe_tile_grid_size == 6
+
+
+def test_parse_config_defaults_low_light_to_disabled() -> None:
+    settings = parse_config_data(_valid_config_dict())
+
+    assert settings.low_light.enabled is False
+    assert settings.low_light.mode == "off"
+
+
+def test_parse_config_rejects_invalid_low_light_mode() -> None:
+    raw_config = _valid_config_dict()
+    raw_config["preprocessing"] = {"low_light": {"mode": "night_vision"}}
+
+    with pytest.raises(ConfigurationError, match="low_light.mode"):
+        parse_config_data(raw_config)
+
+
 def test_parse_config_accepts_storage_json_format() -> None:
     raw_config = _valid_config_dict()
     raw_config["storage"]["format"] = "json"
@@ -151,6 +193,15 @@ def _valid_config_yaml() -> str:
           frame_skip: 0
           enable_tracking: false
           max_detections: 20
+
+        preprocessing:
+          low_light:
+            enabled: false
+            mode: "off"
+            gamma: 1.5
+            brightness_threshold: 65
+            clahe_clip_limit: 2.0
+            clahe_tile_grid_size: 8
 
         display:
           show_window: true
