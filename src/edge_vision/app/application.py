@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from edge_vision.app.pipeline import ProcessingPipeline
+from edge_vision.storage.result_writer import ResultWriter
 from edge_vision.video.video_source import VideoSource
 from edge_vision.visualization.renderer import Renderer
 from edge_vision.visualization.window_display import WindowDisplay
@@ -16,6 +17,7 @@ class EdgeVisionApplication:
         renderer: Renderer,
         display: WindowDisplay,
         max_frames: int | None = None,
+        result_writer: ResultWriter | None = None,
     ) -> None:
         if max_frames is not None and max_frames < 0:
             raise ValueError("max_frames must be non-negative or None.")
@@ -24,6 +26,7 @@ class EdgeVisionApplication:
         self._renderer = renderer
         self._display = display
         self._max_frames = max_frames
+        self._result_writer = result_writer
 
     def run(self) -> int:
         """Run a controlled visual processing loop and return processed frames."""
@@ -36,6 +39,8 @@ class EdgeVisionApplication:
                     break
 
                 result = self._processing_pipeline.process_frame(frame_packet)
+                if self._result_writer is not None:
+                    self._result_writer.write(result)
                 rendered_frame = self._renderer.render(
                     frame_packet.original_frame,
                     result.detections,
@@ -47,6 +52,8 @@ class EdgeVisionApplication:
         finally:
             self._video_source.release()
             self._display.close()
+            if self._result_writer is not None:
+                self._result_writer.close()
 
         return processed_frames
 

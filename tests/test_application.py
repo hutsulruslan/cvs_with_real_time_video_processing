@@ -40,6 +40,22 @@ def test_application_runs_visual_flow_with_mock_detector() -> None:
     assert all(frame.sum() > 0 for frame in display.shown_frames)
 
 
+def test_application_writes_results_when_writer_is_present() -> None:
+    writer = FakeResultWriter()
+    pipeline = FakePipeline()
+
+    processed_count = _application(
+        FakeVideoSource([_packet(1), _packet(2)]),
+        pipeline=pipeline,
+        display=FakeDisplay(),
+        result_writer=writer,
+    ).run()
+
+    assert processed_count == 2
+    assert [result.frame_id for result in writer.results] == [1, 2]
+    assert writer.closed is True
+
+
 def test_application_stops_when_source_ends() -> None:
     source = FakeVideoSource([_packet(1)])
     display = FakeDisplay()
@@ -55,28 +71,41 @@ def test_application_stops_when_source_ends() -> None:
 
 def test_application_stops_when_display_requests_quit() -> None:
     pipeline = FakePipeline()
+    writer = FakeResultWriter()
 
     processed_count = _application(
         FakeVideoSource([_packet(1), _packet(2), _packet(3)]),
         pipeline=pipeline,
         display=FakeDisplay(quit_after=1),
+        result_writer=writer,
     ).run()
 
     assert processed_count == 1
     assert [packet.frame_id for packet in pipeline.received_packets] == [1]
+    assert [result.frame_id for result in writer.results] == [1]
+    assert writer.closed is True
 
 
 def test_application_with_zero_max_frames_only_opens_and_closes() -> None:
     source = FakeVideoSource([_packet(1)])
     pipeline = FakePipeline()
     display = FakeDisplay()
+    writer = FakeResultWriter()
 
-    processed_count = _application(source, pipeline=pipeline, display=display, max_frames=0).run()
+    processed_count = _application(
+        source,
+        pipeline=pipeline,
+        display=display,
+        max_frames=0,
+        result_writer=writer,
+    ).run()
 
     assert processed_count == 0
     assert pipeline.received_packets == []
     assert source.released is True
     assert display.closed is True
+    assert writer.results == []
+    assert writer.closed is True
 
 
 class FakeVideoSource:
@@ -129,12 +158,38 @@ class FakeDisplay:
         self.closed = True
 
 
+class FakeResultWriter:
+    def __init__(self) -> None:
+        self.results: list[FrameResult] = []
+        self.closed = False
+
+    def write(self, result: FrameResult) -> None:
+        self.results.append(result)
+
+    def close(self) -> None:
+        self.closed = True
+
+
 def _packet(frame_id: int) -> FramePacket:
     return FramePacket(frame_id, float(frame_id * 10), np.zeros((4, 4, 3), dtype=np.uint8))
 
 
-def _application(source, pipeline=None, renderer=None, display=None, max_frames=None) -> EdgeVisionApplication:
-    return EdgeVisionApplication(source, pipeline or FakePipeline(), renderer or FakeRenderer(), display or FakeDisplay(), max_frames)
+def _application(
+    source,
+    pipeline=None,
+    renderer=None,
+    display=None,
+    max_frames=None,
+    result_writer=None,
+) -> EdgeVisionApplication:
+    return EdgeVisionApplication(
+        source,
+        pipeline or FakePipeline(),
+        renderer or FakeRenderer(),
+        display or FakeDisplay(),
+        max_frames,
+        result_writer,
+    )
 
 def _mock_processing_pipeline() -> ProcessingPipeline:
     return ProcessingPipeline(

@@ -11,6 +11,7 @@ from edge_vision.metrics.fps_counter import FPSCounter
 from edge_vision.metrics.profiler import Profiler
 from edge_vision.postprocessing.postprocessor import DetectionPostProcessor
 from edge_vision.preprocessing.preprocessor import FramePreprocessor
+from edge_vision.storage.writer_factory import create_result_writer
 from edge_vision.video.source_factory import create_video_source
 from edge_vision.video.video_source import VideoSource
 from edge_vision.visualization.renderer import Renderer
@@ -34,6 +35,7 @@ def create_application(
         renderer=Renderer(show_fps=settings.display.show_fps),
         display=display or WindowDisplay(window_name=settings.display.window_name),
         max_frames=max_frames,
+        result_writer=create_result_writer(settings.storage),
     )
 
 

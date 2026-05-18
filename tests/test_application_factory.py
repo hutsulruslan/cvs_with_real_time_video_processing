@@ -59,6 +59,21 @@ def test_create_application_rejects_disabled_window_for_visual_mode() -> None:
         create_application(_settings(show_window=False), video_source=FakeVideoSource([]), display=FakeDisplay())
 
 
+def test_create_application_saves_results_when_storage_is_enabled(tmp_path: Path) -> None:
+    source = FakeVideoSource([_packet()])
+    display = FakeDisplay()
+
+    processed_frames = create_application(
+        _settings(save_detections=True, output_dir=str(tmp_path)),
+        video_source=source,
+        display=display,
+        max_frames=1,
+    ).run()
+
+    assert processed_frames == 1
+    assert (tmp_path / "detections" / "results.csv").exists()
+
+
 class FakeVideoSource(VideoSource):
     def __init__(self, packets: list[FramePacket]) -> None:
         self._packets = list(packets)
@@ -92,6 +107,8 @@ def _settings(
     show_window: bool = True,
     model_path: str = "assets/models/model.tflite",
     labels_path: str = "assets/models/labels.txt",
+    save_detections: bool = False,
+    output_dir: str = "output",
 ) -> AppSettings:
     return AppSettings(
         video=VideoSettings("camera", 0, "assets/samples/sample_video.mp4", 640, 480),
@@ -106,7 +123,7 @@ def _settings(
         ),
         processing=ProcessingSettings(0, False, 20),
         display=DisplaySettings(show_window, True, "Edge Vision System"),
-        storage=StorageSettings(True, False, "output"),
+        storage=StorageSettings(save_detections, False, output_dir),
     )
 
 
