@@ -192,6 +192,54 @@ Phone camera testing can be done later by exposing the phone as a virtual camera
 or by adding a dedicated stream source. The Phase 2 camera source already supports
 virtual camera devices available through OpenCV camera indexes.
 
+## Optional Result Saving
+
+Detection result saving is optional and disabled by default. It is intended for
+local experiments and thesis demos where frame-level metrics and detections need
+to be reviewed after a run.
+
+To save CSV results, set:
+
+```yaml
+storage:
+  save_detections: true
+  format: "csv"
+  output_dir: "output"
+```
+
+The CSV file is written to:
+
+```text
+output/detections/results.csv
+```
+
+To save JSON results, set:
+
+```yaml
+storage:
+  save_detections: true
+  format: "json"
+  output_dir: "output"
+```
+
+The JSON file is written to:
+
+```text
+output/detections/results.json
+```
+
+Saved result data includes `frame_id`, `timestamp_ms`, `fps`, `inference_ms`,
+`total_frame_ms`, and detections with `class_id`, `class_name`, `confidence`,
+`x_min`, `y_min`, `x_max`, and `y_max`.
+
+The `output/` directory is local runtime output and should not be committed.
+After experiments, restore storage to the usual default:
+
+```yaml
+storage:
+  save_detections: false
+```
+
 ## Tests
 
 ```powershell
