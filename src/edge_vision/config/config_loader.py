@@ -7,6 +7,7 @@ import yaml
 
 from edge_vision.config.settings import (
     AppSettings,
+    BoxSmoothingSettings,
     DisplaySettings,
     LowLightSettings,
     ModelSettings,
@@ -87,6 +88,7 @@ def parse_config_data(raw_data: Any) -> AppSettings:
             show_window=sections["display"]["show_window"],
             show_fps=sections["display"]["show_fps"],
             window_name=sections["display"]["window_name"],
+            show_debug_overlay=sections["display"].get("show_debug_overlay", False),
         ),
         storage=StorageSettings(
             save_detections=sections["storage"]["save_detections"],
@@ -95,6 +97,7 @@ def parse_config_data(raw_data: Any) -> AppSettings:
             format=sections["storage"].get("format", "csv"),
         ),
         low_light=_parse_low_light_settings(raw_data),
+        box_smoothing=_parse_box_smoothing_settings(raw_data),
     )
     _validate_settings(settings)
     return settings
@@ -154,6 +157,7 @@ def _validate_settings(settings: AppSettings) -> None:
 
     _require_bool(settings.display.show_window, "display.show_window")
     _require_bool(settings.display.show_fps, "display.show_fps")
+    _require_bool(settings.display.show_debug_overlay, "display.show_debug_overlay")
     _require_text(settings.display.window_name, "display.window_name")
 
     _require_bool(settings.storage.save_detections, "storage.save_detections")
@@ -180,6 +184,12 @@ def _validate_settings(settings: AppSettings) -> None:
         settings.low_light.clahe_tile_grid_size,
         "preprocessing.low_light.clahe_tile_grid_size",
     )
+    _require_bool(settings.box_smoothing.enabled, "postprocessing.box_smoothing.enabled")
+    _require_probability(settings.box_smoothing.alpha, "postprocessing.box_smoothing.alpha")
+    _require_probability(
+        settings.box_smoothing.iou_threshold,
+        "postprocessing.box_smoothing.iou_threshold",
+    )
 
 
 def _parse_low_light_settings(raw_data: Mapping[str, Any]) -> LowLightSettings:
@@ -198,6 +208,24 @@ def _parse_low_light_settings(raw_data: Mapping[str, Any]) -> LowLightSettings:
         brightness_threshold=low_light.get("brightness_threshold", 65.0),
         clahe_clip_limit=low_light.get("clahe_clip_limit", 2.0),
         clahe_tile_grid_size=low_light.get("clahe_tile_grid_size", 8),
+    )
+
+
+def _parse_box_smoothing_settings(raw_data: Mapping[str, Any]) -> BoxSmoothingSettings:
+    postprocessing = raw_data.get("postprocessing", {})
+    if not isinstance(postprocessing, Mapping):
+        raise ConfigurationError("Missing or invalid 'postprocessing' section.")
+
+    box_smoothing = postprocessing.get("box_smoothing", {})
+    if not isinstance(box_smoothing, Mapping):
+        raise ConfigurationError(
+            "Missing or invalid 'postprocessing.box_smoothing' section."
+        )
+
+    return BoxSmoothingSettings(
+        enabled=box_smoothing.get("enabled", False),
+        alpha=box_smoothing.get("alpha", 0.6),
+        iou_threshold=box_smoothing.get("iou_threshold", 0.3),
     )
 
 

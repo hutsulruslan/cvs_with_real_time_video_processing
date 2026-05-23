@@ -45,6 +45,13 @@ class LowLightSettings:
 
 
 @dataclass(frozen=True, slots=True)
+class BoxSmoothingSettings:
+    enabled: bool = False
+    alpha: float = 0.6
+    iou_threshold: float = 0.3
+
+
+@dataclass(frozen=True, slots=True)
 class ProcessingSettings:
     frame_skip: int
     enable_tracking: bool
@@ -57,6 +64,7 @@ class DisplaySettings:
     show_window: bool
     show_fps: bool
     window_name: str
+    show_debug_overlay: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,3 +83,4 @@ class AppSettings:
     display: DisplaySettings
     storage: StorageSettings
     low_light: LowLightSettings = field(default_factory=LowLightSettings)
+    box_smoothing: BoxSmoothingSettings = field(default_factory=BoxSmoothingSettings)

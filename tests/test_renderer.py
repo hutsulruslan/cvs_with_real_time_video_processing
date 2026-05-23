@@ -69,6 +69,38 @@ def test_detection_label_near_top_left_edge_does_not_crash() -> None:
     assert rendered.sum() > 0
 
 
+def test_renderer_uses_different_style_for_reused_detections() -> None:
+    frame = _black_frame()
+    detection = _detection(y_min=40, y_max=70)
+
+    fresh = Renderer(show_fps=False).render(
+        frame,
+        [detection],
+        inference_ran=True,
+    )
+    reused = Renderer(show_fps=False).render(
+        frame,
+        [detection],
+        inference_ran=False,
+    )
+
+    assert fresh[40, 10].tolist() == [0, 255, 0]
+    assert reused[40, 10].tolist() == [0, 191, 255]
+
+
+def test_renderer_debug_overlay_uses_result_age_metadata() -> None:
+    frame = _black_frame()
+
+    rendered = Renderer(show_fps=False, show_debug_overlay=True).render(
+        frame,
+        [],
+        inference_ran=False,
+        result_age_ms=42.5,
+    )
+
+    assert not np.array_equal(rendered, frame)
+
+
 def test_renderer_rejects_invalid_frame_shape() -> None:
     with pytest.raises(ValueError, match="three color channels"):
         Renderer().render(np.zeros((20, 20), dtype=np.uint8), [])

@@ -172,10 +172,17 @@ class FakePipeline:
 
 class FakeRenderer:
     def __init__(self) -> None:
-        self.render_calls: list[tuple[np.ndarray, list[Detection], float | None]] = []
+        self.render_calls: list[tuple[np.ndarray, list[Detection], float | None, bool]] = []
 
-    def render(self, frame: np.ndarray, detections: list[Detection], fps: float | None = None) -> np.ndarray:
-        self.render_calls.append((frame, detections, fps))
+    def render(
+        self,
+        frame: np.ndarray,
+        detections: list[Detection],
+        fps: float | None = None,
+        inference_ran: bool = True,
+        result_age_ms: float | None = None,
+    ) -> np.ndarray:
+        self.render_calls.append((frame, detections, fps, inference_ran))
         return frame.copy()
 
 

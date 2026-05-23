@@ -13,6 +13,7 @@ if str(SRC_ROOT) not in sys.path:
 
 from edge_vision.core.detection import Detection
 from edge_vision.core.frame import PreprocessedFrame
+from edge_vision.postprocessing.box_smoother import BoxSmoother
 from edge_vision.postprocessing.postprocessor import DetectionPostProcessor
 
 
@@ -41,6 +42,35 @@ def test_postprocessor_returns_empty_list_when_all_detections_are_filtered() -> 
     processed = postprocessor.process([_detection(confidence=0.1)], _frame())
 
     assert processed == []
+
+
+def test_postprocessor_applies_nms_before_scaling() -> None:
+    detections = [
+        _detection(confidence=0.7, class_name="lower", x_min=10),
+        _detection(confidence=0.9, class_name="higher", x_min=11),
+    ]
+    postprocessor = DetectionPostProcessor(
+        confidence_threshold=0.5,
+        nms_threshold=0.5,
+    )
+
+    processed = postprocessor.process(detections, _frame())
+
+    assert [detection.class_name for detection in processed] == ["higher"]
+    assert processed[0].x_min == 22
+
+
+def test_postprocessor_can_smooth_scaled_boxes() -> None:
+    postprocessor = DetectionPostProcessor(
+        confidence_threshold=0.5,
+        box_smoother=BoxSmoother(alpha=0.5, iou_threshold=0.1),
+    )
+
+    first = postprocessor.process([_detection(confidence=0.9, x_min=10)], _frame())
+    second = postprocessor.process([_detection(confidence=0.9, x_min=14)], _frame())
+
+    assert first[0].x_min == 20
+    assert second[0].x_min == 24
 
 
 def _frame() -> PreprocessedFrame:

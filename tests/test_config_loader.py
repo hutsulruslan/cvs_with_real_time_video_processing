@@ -23,6 +23,7 @@ def test_project_default_config_uses_mock_runtime() -> None:
     assert settings.video.file_source_fps is None
     assert settings.low_light.enabled is False
     assert settings.low_light.mode == "off"
+    assert settings.box_smoothing.enabled is False
     assert settings.processing.pipeline_mode == "sequential"
 
 
@@ -41,6 +42,8 @@ def test_load_config_returns_typed_settings(tmp_path: Path) -> None:
     assert settings.model.normalize is False
     assert settings.low_light.enabled is False
     assert settings.low_light.mode == "off"
+    assert settings.box_smoothing.enabled is False
+    assert settings.display.show_debug_overlay is False
     assert settings.processing.pipeline_mode == "sequential"
     assert settings.processing.max_detections == 20
     assert settings.display.window_name == "Edge Vision System"
@@ -170,6 +173,40 @@ def test_parse_config_rejects_invalid_low_light_mode() -> None:
 
     with pytest.raises(ConfigurationError, match="low_light.mode"):
         parse_config_data(raw_config)
+
+
+def test_parse_config_accepts_box_smoothing_settings() -> None:
+    raw_config = _valid_config_dict()
+    raw_config["postprocessing"] = {
+        "box_smoothing": {
+            "enabled": True,
+            "alpha": 0.5,
+            "iou_threshold": 0.2,
+        }
+    }
+
+    settings = parse_config_data(raw_config)
+
+    assert settings.box_smoothing.enabled is True
+    assert settings.box_smoothing.alpha == 0.5
+    assert settings.box_smoothing.iou_threshold == 0.2
+
+
+def test_parse_config_rejects_invalid_box_smoothing_alpha() -> None:
+    raw_config = _valid_config_dict()
+    raw_config["postprocessing"] = {"box_smoothing": {"alpha": 1.5}}
+
+    with pytest.raises(ConfigurationError, match="box_smoothing.alpha"):
+        parse_config_data(raw_config)
+
+
+def test_parse_config_accepts_display_debug_overlay() -> None:
+    raw_config = _valid_config_dict()
+    raw_config["display"]["show_debug_overlay"] = True
+
+    settings = parse_config_data(raw_config)
+
+    assert settings.display.show_debug_overlay is True
 
 
 def test_parse_config_accepts_low_latency_pipeline_mode() -> None:

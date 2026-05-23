@@ -12,21 +12,34 @@ from edge_vision.core.detection import Detection
 class Renderer:
     """Draw detections and optional FPS text on image frames."""
 
-    def __init__(self, show_fps: bool = True) -> None:
+    def __init__(
+        self,
+        show_fps: bool = True,
+        show_debug_overlay: bool = False,
+    ) -> None:
         self._show_fps = show_fps
+        self._show_debug_overlay = show_debug_overlay
 
     def render(
         self,
         frame: NDArray[Any],
         detections: list[Detection],
         fps: float | None = None,
+        inference_ran: bool = True,
+        result_age_ms: float | None = None,
     ) -> NDArray[Any]:
         """Return a rendered copy of the input frame."""
         _validate_frame(frame)
         rendered = frame.copy()
+        style = _style_for_result(inference_ran)
 
         for detection in detections:
-            self._draw_detection(rendered, detection)
+            self._draw_detection(
+                rendered,
+                detection,
+                color=style.color,
+                label_suffix=style.label_suffix,
+            )
 
         if self._show_fps and fps is not None:
             cv2.putText(
@@ -39,9 +52,17 @@ class Renderer:
                 2,
                 cv2.LINE_AA,
             )
+        if self._show_debug_overlay:
+            self._draw_debug_overlay(rendered, inference_ran, result_age_ms)
         return rendered
 
-    def _draw_detection(self, frame: NDArray[Any], detection: Detection) -> None:
+    def _draw_detection(
+        self,
+        frame: NDArray[Any],
+        detection: Detection,
+        color: tuple[int, int, int],
+        label_suffix: str,
+    ) -> None:
         height, width = frame.shape[:2]
         x_min, x_max = sorted((detection.x_min, detection.x_max))
         y_min, y_max = sorted((detection.y_min, detection.y_max))
@@ -50,14 +71,22 @@ class Renderer:
         y_min = _clamp(y_min, 0, height - 1)
         y_max = _clamp(y_max, 0, height - 1)
 
-        cv2.rectangle(frame, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
-        self._draw_label(frame, detection, x_min, y_min)
+        cv2.rectangle(frame, (x_min, y_min), (x_max, y_max), color, 2)
+        self._draw_label(frame, detection, x_min, y_min, color, label_suffix)
 
     def _draw_label(
-        self, frame: NDArray[Any], detection: Detection, x_min: int, y_min: int
+        self,
+        frame: NDArray[Any],
+        detection: Detection,
+        x_min: int,
+        y_min: int,
+        color: tuple[int, int, int],
+        label_suffix: str,
     ) -> None:
         height, width = frame.shape[:2]
-        label = f"{detection.class_name} {detection.confidence:.2f}"
+        label = f"{detection.class_name} {detection.confidence * 100:.0f}%"
+        if label_suffix:
+            label = f"{label} {label_suffix}"
         (text_width, text_height), baseline = cv2.getTextSize(
             label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1
         )
@@ -75,7 +104,7 @@ class Renderer:
             frame,
             (text_x, box_top),
             (box_right, box_bottom),
-            (0, 255, 0),
+            color,
             -1,
         )
         cv2.putText(
@@ -88,6 +117,40 @@ class Renderer:
             1,
             cv2.LINE_AA,
         )
+
+    def _draw_debug_overlay(
+        self,
+        frame: NDArray[Any],
+        inference_ran: bool,
+        result_age_ms: float | None,
+    ) -> None:
+        status = "fresh" if inference_ran else "reused"
+        if result_age_ms is None:
+            message = f"result: {status}"
+        else:
+            message = f"result: {status} age={result_age_ms:.1f}ms"
+        cv2.putText(
+            frame,
+            message,
+            (8, 48),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (255, 255, 255),
+            1,
+            cv2.LINE_AA,
+        )
+
+
+class _RenderStyle:
+    def __init__(self, color: tuple[int, int, int], label_suffix: str = "") -> None:
+        self.color = color
+        self.label_suffix = label_suffix
+
+
+def _style_for_result(inference_ran: bool) -> _RenderStyle:
+    if inference_ran:
+        return _RenderStyle((0, 255, 0))
+    return _RenderStyle((0, 191, 255), "reused")
 
 
 def _validate_frame(frame: NDArray[Any]) -> None:

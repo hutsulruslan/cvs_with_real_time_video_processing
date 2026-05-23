@@ -82,5 +82,7 @@ class EdgeVisionApplication:
             frame_packet.original_frame,
             result.detections,
             fps=result.fps,
+            inference_ran=result.inference_ran,
+            result_age_ms=result.result_age_ms,
         )
         return self._display.show(rendered_frame)

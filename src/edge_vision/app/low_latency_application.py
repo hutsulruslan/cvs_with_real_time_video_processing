@@ -216,6 +216,8 @@ class LowLatencyStreamingApplication:
             frame_packet.original_frame,
             result.detections,
             fps=result.fps,
+            inference_ran=result.inference_ran,
+            result_age_ms=result.result_age_ms,
         )
         with self._render_lock:
             self._latest_rendered_frame = rendered_frame

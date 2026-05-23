@@ -26,6 +26,12 @@ preprocessing:
     clahe_clip_limit: 2.0
     clahe_tile_grid_size: 8
 
+postprocessing:
+  box_smoothing:
+    enabled: false
+    alpha: 0.6
+    iou_threshold: 0.3
+
 processing:
   pipeline_mode: "sequential"
   frame_skip: 0
@@ -35,6 +41,7 @@ processing:
 display:
   show_window: true
   show_fps: true
+  show_debug_overlay: false
   window_name: "Edge Vision System"
 
 storage:

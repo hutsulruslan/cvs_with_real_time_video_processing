@@ -13,6 +13,7 @@ from edge_vision.inference.mock_detector import MockObjectDetector
 from edge_vision.inference.tflite_detector import TFLiteObjectDetector
 from edge_vision.metrics.fps_counter import FPSCounter
 from edge_vision.metrics.profiler import Profiler
+from edge_vision.postprocessing.box_smoother import BoxSmoother
 from edge_vision.postprocessing.postprocessor import DetectionPostProcessor
 from edge_vision.preprocessing.preprocessor import FramePreprocessor
 from edge_vision.storage.writer_factory import create_result_writer
@@ -41,7 +42,14 @@ def create_application(
 
     source = video_source or create_video_source(settings.video)
     processing_pipeline = create_processing_pipeline(settings)
-    renderer = None if no_display else Renderer(show_fps=settings.display.show_fps)
+    renderer = (
+        None
+        if no_display
+        else Renderer(
+            show_fps=settings.display.show_fps,
+            show_debug_overlay=settings.display.show_debug_overlay,
+        )
+    )
     window_display = (
         None
         if no_display
@@ -81,6 +89,8 @@ def create_processing_pipeline(settings: AppSettings) -> ProcessingPipeline:
         postprocessor=DetectionPostProcessor(
             confidence_threshold=settings.model.confidence_threshold,
             max_detections=settings.processing.max_detections,
+            nms_threshold=settings.model.nms_threshold,
+            box_smoother=_create_box_smoother(settings),
         ),
         fps_counter=FPSCounter(),
         profiler=Profiler(),
@@ -97,3 +107,12 @@ def _create_detector(settings: AppSettings) -> ObjectDetector:
             labels_path=settings.model.labels_path,
         )
     raise ApplicationError(f"Unsupported model runtime: {settings.model.runtime}")
+
+
+def _create_box_smoother(settings: AppSettings) -> BoxSmoother | None:
+    if not settings.box_smoothing.enabled:
+        return None
+    return BoxSmoother(
+        alpha=settings.box_smoothing.alpha,
+        iou_threshold=settings.box_smoothing.iou_threshold,
+    )
