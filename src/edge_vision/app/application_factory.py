@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Callable
 
 from edge_vision.app.application import EdgeVisionApplication
+from edge_vision.app.low_latency_application import LowLatencyStreamingApplication
 from edge_vision.app.pipeline import ProcessingPipeline
 from edge_vision.config.settings import AppSettings
 from edge_vision.core.errors import ApplicationError
@@ -29,22 +30,42 @@ def create_application(
     max_frames: int | None = None,
     no_display: bool = False,
     result_callback: Callable[[FrameResult], None] | None = None,
-) -> EdgeVisionApplication:
-    """Create the current visual MVP application from typed settings."""
+) -> EdgeVisionApplication | LowLatencyStreamingApplication:
+    """Create the configured application runtime from typed settings."""
     if not no_display and not settings.display.show_window:
         raise ApplicationError("Visual mode requires display.show_window to be true.")
+    if settings.processing.pipeline_mode not in {"sequential", "low_latency"}:
+        raise ApplicationError(
+            "processing.pipeline_mode must be sequential or low_latency."
+        )
 
-    return EdgeVisionApplication(
-        video_source=video_source or create_video_source(settings.video),
-        processing_pipeline=create_processing_pipeline(settings),
-        renderer=None if no_display else Renderer(show_fps=settings.display.show_fps),
-        display=(
-            None
-            if no_display
-            else display or WindowDisplay(window_name=settings.display.window_name)
-        ),
+    source = video_source or create_video_source(settings.video)
+    processing_pipeline = create_processing_pipeline(settings)
+    renderer = None if no_display else Renderer(show_fps=settings.display.show_fps)
+    window_display = (
+        None
+        if no_display
+        else display or WindowDisplay(window_name=settings.display.window_name)
+    )
+    result_writer = create_result_writer(settings.storage)
+
+    if settings.processing.pipeline_mode == "sequential":
+        return EdgeVisionApplication(
+            video_source=source,
+            processing_pipeline=processing_pipeline,
+            renderer=renderer,
+            display=window_display,
+            max_frames=max_frames,
+            result_writer=result_writer,
+            result_callback=result_callback,
+        )
+    return LowLatencyStreamingApplication(
+        video_source=source,
+        processing_pipeline=processing_pipeline,
+        renderer=renderer,
+        display=window_display,
         max_frames=max_frames,
-        result_writer=create_result_writer(settings.storage),
+        result_writer=result_writer,
         result_callback=result_callback,
     )
 

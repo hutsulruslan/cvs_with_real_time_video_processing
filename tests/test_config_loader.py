@@ -22,6 +22,7 @@ def test_project_default_config_uses_mock_runtime() -> None:
     assert settings.model.runtime == "mock"
     assert settings.low_light.enabled is False
     assert settings.low_light.mode == "off"
+    assert settings.processing.pipeline_mode == "sequential"
 
 
 def test_load_config_returns_typed_settings(tmp_path: Path) -> None:
@@ -38,6 +39,7 @@ def test_load_config_returns_typed_settings(tmp_path: Path) -> None:
     assert settings.model.normalize is False
     assert settings.low_light.enabled is False
     assert settings.low_light.mode == "off"
+    assert settings.processing.pipeline_mode == "sequential"
     assert settings.processing.max_detections == 20
     assert settings.display.window_name == "Edge Vision System"
     assert settings.storage.output_dir == "output"
@@ -148,6 +150,23 @@ def test_parse_config_rejects_invalid_low_light_mode() -> None:
     raw_config["preprocessing"] = {"low_light": {"mode": "night_vision"}}
 
     with pytest.raises(ConfigurationError, match="low_light.mode"):
+        parse_config_data(raw_config)
+
+
+def test_parse_config_accepts_low_latency_pipeline_mode() -> None:
+    raw_config = _valid_config_dict()
+    raw_config["processing"]["pipeline_mode"] = "low_latency"
+
+    settings = parse_config_data(raw_config)
+
+    assert settings.processing.pipeline_mode == "low_latency"
+
+
+def test_parse_config_rejects_invalid_pipeline_mode() -> None:
+    raw_config = _valid_config_dict()
+    raw_config["processing"]["pipeline_mode"] = "hard_realtime"
+
+    with pytest.raises(ConfigurationError, match="pipeline_mode"):
         parse_config_data(raw_config)
 
 

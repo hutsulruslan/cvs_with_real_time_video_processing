@@ -96,6 +96,11 @@ def build_arg_parser(default_config_path: str | Path) -> argparse.ArgumentParser
         help="Reuse the latest detections for N frames between model inference runs.",
     )
     parser.add_argument(
+        "--pipeline-mode",
+        choices=("sequential", "low_latency"),
+        help="Select sequential or low-latency streaming processing.",
+    )
+    parser.add_argument(
         "--low-light",
         choices=("off", "gamma", "clahe", "gamma_clahe", "auto"),
         help="Override preprocessing.low_light mode for this run.",
@@ -142,6 +147,7 @@ def _overrides_from_args(args: argparse.Namespace) -> RunOverrides:
         stream_url=args.stream_url,
         max_frames=args.max_frames,
         frame_skip=args.frame_skip,
+        pipeline_mode=args.pipeline_mode,
         no_display=args.no_display,
         low_light=args.low_light,
         gamma=args.gamma,

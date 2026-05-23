@@ -8,6 +8,7 @@ VideoSourceType = Literal["camera", "file", "stream", "picamera2"]
 ModelRuntime = Literal["mock", "tflite"]
 StorageFormat = Literal["csv", "json"]
 LowLightMode = Literal["off", "gamma", "clahe", "gamma_clahe", "auto"]
+PipelineMode = Literal["sequential", "low_latency"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,6 +48,7 @@ class ProcessingSettings:
     frame_skip: int
     enable_tracking: bool
     max_detections: int
+    pipeline_mode: PipelineMode = "sequential"
 
 
 @dataclass(frozen=True, slots=True)

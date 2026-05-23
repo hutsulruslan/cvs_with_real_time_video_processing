@@ -26,6 +26,7 @@ preprocessing:
     clahe_tile_grid_size: 8
 
 processing:
+  pipeline_mode: "sequential"
   frame_skip: 0
   enable_tracking: false
   max_detections: 20

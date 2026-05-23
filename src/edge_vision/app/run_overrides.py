@@ -7,6 +7,7 @@ from edge_vision.config.settings import (
     AppSettings,
     LowLightMode,
     ModelRuntime,
+    PipelineMode,
     VideoSourceType,
 )
 from edge_vision.core.errors import ApplicationError
@@ -32,6 +33,7 @@ class RunOverrides:
     stream_url: str | None = None
     max_frames: int | None = None
     frame_skip: int | None = None
+    pipeline_mode: PipelineMode | None = None
     no_display: bool = False
     low_light: LowLightMode | None = None
     gamma: float | None = None
@@ -78,6 +80,14 @@ def apply_run_overrides(
             settings,
             processing=replace(settings.processing, frame_skip=overrides.frame_skip),
         )
+    if overrides.pipeline_mode is not None:
+        settings = replace(
+            settings,
+            processing=replace(
+                settings.processing,
+                pipeline_mode=overrides.pipeline_mode,
+            ),
+        )
 
     if overrides.low_light is not None:
         low_light = replace(
@@ -122,6 +132,11 @@ def validate_override_values(overrides: RunOverrides) -> None:
         raise ApplicationError("--max-frames must be non-negative.")
     if overrides.frame_skip is not None and overrides.frame_skip < 0:
         raise ApplicationError("--frame-skip must be non-negative.")
+    if overrides.pipeline_mode is not None and overrides.pipeline_mode not in {
+        "sequential",
+        "low_latency",
+    }:
+        raise ApplicationError("--pipeline-mode must be sequential or low_latency.")
     if overrides.stream_url is not None and not overrides.stream_url.strip():
         raise ApplicationError("--stream-url must be a non-empty string.")
     if overrides.low_light is not None and overrides.low_light not in {

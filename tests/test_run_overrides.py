@@ -127,6 +127,15 @@ def test_frame_skip_override_is_applied_without_mutating_settings() -> None:
     assert settings.processing.frame_skip == 0
 
 
+def test_pipeline_mode_override_is_applied_without_mutating_settings() -> None:
+    settings = _settings()
+
+    updated = apply_run_overrides(settings, RunOverrides(pipeline_mode="low_latency"))
+
+    assert updated.processing.pipeline_mode == "low_latency"
+    assert settings.processing.pipeline_mode == "sequential"
+
+
 def test_validate_run_overrides_allows_bounded_headless_camera_run() -> None:
     settings = apply_run_overrides(_settings(), RunOverrides(profile="mock-camera"))
 
@@ -162,6 +171,12 @@ def test_validate_run_overrides_rejects_negative_values() -> None:
         validate_run_overrides(settings, RunOverrides(max_frames=-1))
     with pytest.raises(ApplicationError, match="--frame-skip"):
         validate_run_overrides(settings, RunOverrides(frame_skip=-1))
+    invalid_mode = "hard_realtime"
+    with pytest.raises(ApplicationError, match="--pipeline-mode"):
+        validate_run_overrides(
+            settings,
+            RunOverrides(pipeline_mode=invalid_mode),  # type: ignore[arg-type]
+        )
     with pytest.raises(ApplicationError, match="--stream-url"):
         validate_run_overrides(settings, RunOverrides(stream_url=""))
 

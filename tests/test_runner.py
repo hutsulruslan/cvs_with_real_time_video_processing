@@ -3,6 +3,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SRC_ROOT = PROJECT_ROOT / "src"
@@ -31,6 +33,21 @@ def test_run_cli_parser_accepts_frame_skip_override() -> None:
     args = build_arg_parser("config.yaml").parse_args(["--frame-skip", "2"])
 
     assert args.frame_skip == 2
+
+
+def test_run_cli_parser_accepts_pipeline_mode_override() -> None:
+    args = build_arg_parser("config.yaml").parse_args(
+        ["--pipeline-mode", "low_latency"]
+    )
+
+    assert args.pipeline_mode == "low_latency"
+
+
+def test_run_cli_parser_rejects_invalid_pipeline_mode() -> None:
+    with pytest.raises(SystemExit):
+        build_arg_parser("config.yaml").parse_args(
+            ["--pipeline-mode", "hard_realtime"]
+        )
 
 
 def test_run_cli_parser_accepts_low_light_and_confidence_overrides() -> None:
@@ -167,6 +184,39 @@ def test_run_cli_report_mode_prints_summary_without_display(
     assert "average_fps: 15.00" in output
 
 
+def test_run_cli_passes_low_latency_pipeline_mode(
+    tmp_path: Path,
+    capsys,
+    monkeypatch,
+) -> None:
+    config_path = _write_config(tmp_path)
+
+    monkeypatch.setattr(
+        "edge_vision.app.runner.create_application",
+        _fake_low_latency_application_factory,
+    )
+
+    exit_code = run_cli(
+        [
+            "--config",
+            str(config_path),
+            "--profile",
+            "mock-file",
+            "--max-frames",
+            "2",
+            "--no-display",
+            "--report",
+            "--pipeline-mode",
+            "low_latency",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "Processed frames: 2" in output
+    assert "processed_frames: 2" in output
+
+
 def test_run_cli_rejects_unbounded_headless_camera_run(tmp_path: Path, capsys) -> None:
     config_path = _write_config(tmp_path)
 
@@ -291,6 +341,13 @@ storage:
 
 
 def _fake_application_factory(*args, **kwargs) -> "FakeApplication":
+    assert kwargs["max_frames"] == 2
+    assert kwargs["no_display"] is True
+    return FakeApplication(kwargs["result_callback"])
+
+
+def _fake_low_latency_application_factory(settings, *args, **kwargs) -> "FakeApplication":
+    assert settings.processing.pipeline_mode == "low_latency"
     assert kwargs["max_frames"] == 2
     assert kwargs["no_display"] is True
     return FakeApplication(kwargs["result_callback"])

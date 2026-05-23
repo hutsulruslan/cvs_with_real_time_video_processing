@@ -80,6 +80,7 @@ def parse_config_data(raw_data: Any) -> AppSettings:
             frame_skip=sections["processing"]["frame_skip"],
             enable_tracking=sections["processing"]["enable_tracking"],
             max_detections=sections["processing"]["max_detections"],
+            pipeline_mode=sections["processing"].get("pipeline_mode", "sequential"),
         ),
         display=DisplaySettings(
             show_window=sections["display"]["show_window"],
@@ -140,6 +141,10 @@ def _validate_settings(settings: AppSettings) -> None:
     _require_non_negative_int(settings.processing.frame_skip, "processing.frame_skip")
     _require_bool(settings.processing.enable_tracking, "processing.enable_tracking")
     _require_positive_int(settings.processing.max_detections, "processing.max_detections")
+    if settings.processing.pipeline_mode not in {"sequential", "low_latency"}:
+        raise ConfigurationError(
+            "processing.pipeline_mode must be sequential or low_latency."
+        )
 
     _require_bool(settings.display.show_window, "display.show_window")
     _require_bool(settings.display.show_fps, "display.show_fps")

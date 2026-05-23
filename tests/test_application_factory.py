@@ -12,7 +12,9 @@ SRC_ROOT = PROJECT_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
+from edge_vision.app.application import EdgeVisionApplication
 from edge_vision.app.application_factory import create_application
+from edge_vision.app.low_latency_application import LowLatencyStreamingApplication
 from edge_vision.config.settings import (
     AppSettings,
     DisplaySettings,
@@ -43,6 +45,26 @@ def test_create_application_runs_mock_visual_mode_with_overrides() -> None:
     assert display.closed is True
     assert len(display.shown_frames) == 1
     assert display.shown_frames[0].sum() > 0
+
+
+def test_create_application_defaults_to_sequential_application() -> None:
+    application = create_application(
+        _settings(),
+        video_source=FakeVideoSource([]),
+        no_display=True,
+    )
+
+    assert isinstance(application, EdgeVisionApplication)
+
+
+def test_create_application_uses_low_latency_application_when_configured() -> None:
+    application = create_application(
+        _settings(pipeline_mode="low_latency"),
+        video_source=FakeVideoSource([]),
+        no_display=True,
+    )
+
+    assert isinstance(application, LowLatencyStreamingApplication)
 
 
 def test_create_application_reports_missing_tflite_model_file(tmp_path: Path) -> None:
@@ -123,6 +145,7 @@ def _settings(
     labels_path: str = "assets/models/labels.txt",
     save_detections: bool = False,
     output_dir: str = "output",
+    pipeline_mode: str = "sequential",
 ) -> AppSettings:
     return AppSettings(
         video=VideoSettings("camera", 0, "assets/samples/sample_video.mp4", 640, 480),
@@ -135,7 +158,7 @@ def _settings(
             0.4,
             0.5,
         ),
-        processing=ProcessingSettings(0, False, 20),
+        processing=ProcessingSettings(0, False, 20, pipeline_mode),  # type: ignore[arg-type]
         display=DisplaySettings(show_window, True, "Edge Vision System"),
         storage=StorageSettings(save_detections, False, output_dir),
     )
