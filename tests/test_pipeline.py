@@ -33,6 +33,7 @@ def test_processing_pipeline_returns_postprocessed_frame_result() -> None:
         ],
         fps_clock=SequenceClock([0.0, 0.5]),
         profiler_clock=SequenceClock([0.0, 0.01, 0.02, 0.03, 0.08, 0.09, 0.10, 0.12]),
+        completion_clock_ns=SequenceClockNs([150_000_000]),
     )
 
     result = pipeline.process_frame(
@@ -41,6 +42,13 @@ def test_processing_pipeline_returns_postprocessed_frame_result() -> None:
 
     assert result.frame_id == 3
     assert result.timestamp_ms == 30.0
+    assert result.timestamp_ns == 30_000_000
+    assert result.source_frame_id == 3
+    assert result.source_timestamp_ns == 30_000_000
+    assert result.completed_timestamp_ns == 150_000_000
+    assert result.result_age_ms == pytest.approx(120.0)
+    assert result.end_to_end_latency_ms == pytest.approx(120.0)
+    assert result.inference_ran is True
     assert result.fps == 2.0
     assert result.inference_ms == pytest.approx(50.0)
     assert result.total_frame_ms == pytest.approx(120.0)
@@ -90,6 +98,9 @@ def test_processing_pipeline_reuses_latest_detections_for_skipped_frames() -> No
                 0.17,
             ]
         ),
+        completion_clock_ns=SequenceClockNs(
+            [80_000_000, 95_000_000, 170_000_000]
+        ),
         frame_skip=1,
     )
 
@@ -98,9 +109,14 @@ def test_processing_pipeline_reuses_latest_detections_for_skipped_frames() -> No
     third_result = pipeline.process_frame(_packet(frame_id=3))
 
     assert first_result.inference_ms > 0.0
+    assert first_result.source_frame_id == 1
     assert second_result.inference_ms == 0.0
     assert second_result.frame_id == 2
+    assert second_result.source_frame_id == 1
+    assert second_result.result_age_ms == pytest.approx(85.0)
+    assert second_result.inference_ran is False
     assert third_result.inference_ms > 0.0
+    assert third_result.source_frame_id == 3
     assert [d.class_name for d in second_result.detections] == ["object"]
 
 
@@ -145,14 +161,29 @@ class SequenceClock:
         return self._values.pop(0)
 
 
+class SequenceClockNs:
+    def __init__(self, values: list[int] | None = None) -> None:
+        self._values = list(values or [0])
+
+    def now(self) -> int:
+        if not self._values:
+            return 0
+        return self._values.pop(0)
+
+
 def _pipeline(
     detections: list[Detection],
     confidence_threshold: float = 0.5,
     max_detections: int | None = None,
     fps_clock: SequenceClock | None = None,
     profiler_clock: SequenceClock | None = None,
+    completion_clock_ns: SequenceClockNs | None = None,
     frame_skip: int = 0,
 ) -> ProcessingPipeline:
+    kwargs = {}
+    if completion_clock_ns is not None:
+        kwargs["time_provider_ns"] = completion_clock_ns.now
+
     return ProcessingPipeline(
         preprocessor=FramePreprocessor(input_width=2, input_height=2),
         detector=MockObjectDetector(detections),
@@ -163,6 +194,7 @@ def _pipeline(
         fps_counter=FPSCounter(time_provider=(fps_clock or SequenceClock()).now),
         profiler=Profiler(time_provider=(profiler_clock or SequenceClock()).now),
         frame_skip=frame_skip,
+        **kwargs,
     )
 
 

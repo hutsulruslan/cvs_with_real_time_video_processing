@@ -10,6 +10,7 @@ class PerformanceSummary:
     """Aggregated frame-level metrics for one application run."""
 
     processed_frames: int
+    processed_inference_frames: int
     total_detections: int
     average_fps: float | None
     min_fps: float | None
@@ -20,6 +21,12 @@ class PerformanceSummary:
     average_total_frame_ms: float | None
     min_total_frame_ms: float | None
     max_total_frame_ms: float | None
+    average_result_age_ms: float | None
+    min_result_age_ms: float | None
+    max_result_age_ms: float | None
+    average_end_to_end_latency_ms: float | None
+    min_end_to_end_latency_ms: float | None
+    max_end_to_end_latency_ms: float | None
 
 
 class PerformanceReportBuilder:
@@ -27,23 +34,31 @@ class PerformanceReportBuilder:
 
     def __init__(self) -> None:
         self._processed_frames = 0
+        self._processed_inference_frames = 0
         self._total_detections = 0
         self._fps = _MetricAccumulator()
         self._inference_ms = _MetricAccumulator()
         self._total_frame_ms = _MetricAccumulator()
+        self._result_age_ms = _MetricAccumulator()
+        self._end_to_end_latency_ms = _MetricAccumulator()
 
     def add_result(self, result: FrameResult) -> None:
         """Add one processed frame result to the report."""
         self._processed_frames += 1
+        if result.inference_ran:
+            self._processed_inference_frames += 1
+            self._inference_ms.add(result.inference_ms)
         self._total_detections += len(result.detections)
         self._fps.add(result.fps)
-        self._inference_ms.add(result.inference_ms)
         self._total_frame_ms.add(result.total_frame_ms)
+        self._result_age_ms.add_optional(result.result_age_ms)
+        self._end_to_end_latency_ms.add_optional(result.end_to_end_latency_ms)
 
     def build(self) -> PerformanceSummary:
         """Return the current immutable summary."""
         return PerformanceSummary(
             processed_frames=self._processed_frames,
+            processed_inference_frames=self._processed_inference_frames,
             total_detections=self._total_detections,
             average_fps=self._fps.average,
             min_fps=self._fps.minimum,
@@ -54,6 +69,12 @@ class PerformanceReportBuilder:
             average_total_frame_ms=self._total_frame_ms.average,
             min_total_frame_ms=self._total_frame_ms.minimum,
             max_total_frame_ms=self._total_frame_ms.maximum,
+            average_result_age_ms=self._result_age_ms.average,
+            min_result_age_ms=self._result_age_ms.minimum,
+            max_result_age_ms=self._result_age_ms.maximum,
+            average_end_to_end_latency_ms=self._end_to_end_latency_ms.average,
+            min_end_to_end_latency_ms=self._end_to_end_latency_ms.minimum,
+            max_end_to_end_latency_ms=self._end_to_end_latency_ms.maximum,
         )
 
 
@@ -63,6 +84,7 @@ def format_performance_report(summary: PerformanceSummary) -> str:
         [
             "Performance report:",
             f"- processed_frames: {summary.processed_frames}",
+            f"- processed_inference_frames: {summary.processed_inference_frames}",
             f"- total_detections: {summary.total_detections}",
             f"- average_fps: {_format_metric(summary.average_fps)}",
             f"- min_fps: {_format_metric(summary.min_fps)}",
@@ -73,6 +95,21 @@ def format_performance_report(summary: PerformanceSummary) -> str:
             f"- average_total_frame_ms: {_format_metric(summary.average_total_frame_ms)}",
             f"- min_total_frame_ms: {_format_metric(summary.min_total_frame_ms)}",
             f"- max_total_frame_ms: {_format_metric(summary.max_total_frame_ms)}",
+            f"- average_result_age_ms: {_format_metric(summary.average_result_age_ms)}",
+            f"- min_result_age_ms: {_format_metric(summary.min_result_age_ms)}",
+            f"- max_result_age_ms: {_format_metric(summary.max_result_age_ms)}",
+            (
+                "- average_end_to_end_latency_ms: "
+                f"{_format_metric(summary.average_end_to_end_latency_ms)}"
+            ),
+            (
+                "- min_end_to_end_latency_ms: "
+                f"{_format_metric(summary.min_end_to_end_latency_ms)}"
+            ),
+            (
+                "- max_end_to_end_latency_ms: "
+                f"{_format_metric(summary.max_end_to_end_latency_ms)}"
+            ),
         ]
     )
 
@@ -89,6 +126,10 @@ class _MetricAccumulator:
         self._total += value
         self._minimum = value if self._minimum is None else min(self._minimum, value)
         self._maximum = value if self._maximum is None else max(self._maximum, value)
+
+    def add_optional(self, value: float | None) -> None:
+        if value is not None:
+            self.add(value)
 
     @property
     def average(self) -> float | None:

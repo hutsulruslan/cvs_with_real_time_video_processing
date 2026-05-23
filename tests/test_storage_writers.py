@@ -27,6 +27,15 @@ def test_csv_writer_creates_file_with_header_and_detection_rows(tmp_path: Path) 
     rows = _read_csv_rows(output_path)
     assert output_path.exists()
     assert rows[0]["frame_id"] == "1"
+    assert rows[0]["timestamp_ms"] == "123.4"
+    assert rows[0]["timestamp_ns"] == "123400000"
+    assert rows[0]["source_frame_id"] == "1"
+    assert rows[0]["source_timestamp_ms"] == "123.4"
+    assert rows[0]["source_timestamp_ns"] == "123400000"
+    assert rows[0]["completed_timestamp_ns"] == "163400000"
+    assert rows[0]["result_age_ms"] == "40.0"
+    assert rows[0]["end_to_end_latency_ms"] == "40.0"
+    assert rows[0]["inference_ran"] == "True"
     assert rows[0]["class_id"] == "0"
     assert rows[0]["class_name"] == "person"
     assert rows[0]["confidence"] == "0.85"
@@ -66,6 +75,14 @@ def test_json_writer_creates_structured_result_file(tmp_path: Path) -> None:
     assert output_path.exists()
     assert data[0]["frame_id"] == 1
     assert data[0]["timestamp_ms"] == 123.4
+    assert data[0]["timestamp_ns"] == 123400000
+    assert data[0]["source_frame_id"] == 1
+    assert data[0]["source_timestamp_ms"] == 123.4
+    assert data[0]["source_timestamp_ns"] == 123400000
+    assert data[0]["completed_timestamp_ns"] == 163400000
+    assert data[0]["result_age_ms"] == 40.0
+    assert data[0]["end_to_end_latency_ms"] == 40.0
+    assert data[0]["inference_ran"] is True
     assert data[0]["fps"] == 25.0
     assert data[0]["inference_ms"] == 12.3
     assert data[0]["total_frame_ms"] == 40.0

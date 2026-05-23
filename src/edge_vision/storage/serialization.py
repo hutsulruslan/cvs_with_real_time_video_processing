@@ -19,6 +19,14 @@ CSV_FIELD_NAMES = [
     "y_min",
     "x_max",
     "y_max",
+    "timestamp_ns",
+    "source_frame_id",
+    "source_timestamp_ms",
+    "source_timestamp_ns",
+    "completed_timestamp_ns",
+    "result_age_ms",
+    "end_to_end_latency_ms",
+    "inference_ran",
 ]
 
 
@@ -30,6 +38,14 @@ def frame_result_to_dict(result: FrameResult) -> dict[str, Any]:
         "fps": result.fps,
         "inference_ms": result.inference_ms,
         "total_frame_ms": result.total_frame_ms,
+        "timestamp_ns": result.timestamp_ns,
+        "source_frame_id": result.source_frame_id,
+        "source_timestamp_ms": result.source_timestamp_ms,
+        "source_timestamp_ns": result.source_timestamp_ns,
+        "completed_timestamp_ns": result.completed_timestamp_ns,
+        "result_age_ms": result.result_age_ms,
+        "end_to_end_latency_ms": result.end_to_end_latency_ms,
+        "inference_ran": result.inference_ran,
         "detections": [
             detection_to_dict(detection) for detection in result.detections
         ],
@@ -76,4 +92,12 @@ def _base_csv_row(result: FrameResult) -> dict[str, Any]:
         "y_min": "",
         "x_max": "",
         "y_max": "",
+        "timestamp_ns": result.timestamp_ns,
+        "source_frame_id": result.source_frame_id,
+        "source_timestamp_ms": result.source_timestamp_ms,
+        "source_timestamp_ns": result.source_timestamp_ns,
+        "completed_timestamp_ns": result.completed_timestamp_ns,
+        "result_age_ms": result.result_age_ms,
+        "end_to_end_latency_ms": result.end_to_end_latency_ms,
+        "inference_ran": result.inference_ran,
     }

@@ -21,6 +21,7 @@ def test_video_stream_source_reads_frames_and_releases_capture() -> None:
     source = VideoStreamSource(
         stream_url="http://example.local:8080/video",
         capture_factory=lambda url: fake_capture,
+        time_provider_ns=SequenceClockNs([10_000_000, 20_000_000]).now,
     )
 
     source.open()
@@ -33,6 +34,10 @@ def test_video_stream_source_reads_frames_and_releases_capture() -> None:
     assert second is not None
     assert first.frame_id == 0
     assert second.frame_id == 1
+    assert first.timestamp_ms == 10.0
+    assert first.timestamp_ns == 10_000_000
+    assert second.timestamp_ms == 20.0
+    assert second.timestamp_ns == 20_000_000
     assert first.original_frame == "frame-a"
     assert end is None
     assert fake_capture.released is True
@@ -74,3 +79,11 @@ class FakeCapture:
 
     def release(self) -> None:
         self.released = True
+
+
+class SequenceClockNs:
+    def __init__(self, values: list[int]) -> None:
+        self._values = list(values)
+
+    def now(self) -> int:
+        return self._values.pop(0)

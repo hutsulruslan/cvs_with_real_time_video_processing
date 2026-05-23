@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from time import perf_counter_ns
+from typing import Callable
+
 from edge_vision.core.detection import Detection
 from edge_vision.core.frame import FramePacket
 from edge_vision.core.result import FrameResult
@@ -22,6 +25,7 @@ class ProcessingPipeline:
         fps_counter: FPSCounter,
         profiler: Profiler,
         frame_skip: int = 0,
+        time_provider_ns: Callable[[], int] = perf_counter_ns,
     ) -> None:
         if frame_skip < 0:
             raise ValueError("frame_skip must be non-negative.")
@@ -33,6 +37,10 @@ class ProcessingPipeline:
         self._frame_skip = frame_skip
         self._skip_countdown = 0
         self._last_detections: list[Detection] = []
+        self._last_source_frame_id: int | None = None
+        self._last_source_timestamp_ms: float | None = None
+        self._last_source_timestamp_ns: int | None = None
+        self._time_provider_ns = time_provider_ns
 
     def process_frame(self, frame_packet: FramePacket) -> FrameResult:
         """Process one frame packet and return detections with timing data."""
@@ -43,6 +51,7 @@ class ProcessingPipeline:
             self._skip_countdown -= 1
             total_frame_ms = self._profiler.stop("total_frame")
             fps = self._fps_counter.update()
+            completed_timestamp_ns = self._time_provider_ns()
             return FrameResult(
                 frame_id=frame_packet.frame_id,
                 timestamp_ms=frame_packet.timestamp_ms,
@@ -50,6 +59,12 @@ class ProcessingPipeline:
                 fps=fps,
                 inference_ms=0.0,
                 total_frame_ms=total_frame_ms,
+                timestamp_ns=frame_packet.timestamp_ns,
+                source_frame_id=self._last_source_frame_id,
+                source_timestamp_ms=self._last_source_timestamp_ms,
+                source_timestamp_ns=self._last_source_timestamp_ns,
+                completed_timestamp_ns=completed_timestamp_ns,
+                inference_ran=False,
             )
 
         self._profiler.start("preprocess")
@@ -66,7 +81,11 @@ class ProcessingPipeline:
 
         total_frame_ms = self._profiler.stop("total_frame")
         fps = self._fps_counter.update()
+        completed_timestamp_ns = self._time_provider_ns()
         self._last_detections = list(detections)
+        self._last_source_frame_id = frame_packet.frame_id
+        self._last_source_timestamp_ms = frame_packet.timestamp_ms
+        self._last_source_timestamp_ns = frame_packet.timestamp_ns
         self._skip_countdown = self._frame_skip
 
         return FrameResult(
@@ -76,6 +95,12 @@ class ProcessingPipeline:
             fps=fps,
             inference_ms=inference_ms,
             total_frame_ms=total_frame_ms,
+            timestamp_ns=frame_packet.timestamp_ns,
+            source_frame_id=frame_packet.frame_id,
+            source_timestamp_ms=frame_packet.timestamp_ms,
+            source_timestamp_ns=frame_packet.timestamp_ns,
+            completed_timestamp_ns=completed_timestamp_ns,
+            inference_ran=True,
         )
 
     def _should_reuse_last_detections(self) -> bool:

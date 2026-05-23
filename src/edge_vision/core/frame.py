@@ -13,6 +13,15 @@ class FramePacket:
     frame_id: int
     timestamp_ms: float
     original_frame: NDArray[Any]
+    timestamp_ns: int | None = None
+
+    def __post_init__(self) -> None:
+        if self.timestamp_ns is None:
+            object.__setattr__(
+                self,
+                "timestamp_ns",
+                round(self.timestamp_ms * 1_000_000),
+            )
 
 
 @dataclass(frozen=True, slots=True)

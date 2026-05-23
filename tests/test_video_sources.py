@@ -27,6 +27,7 @@ def test_camera_source_reads_frames_and_releases_capture() -> None:
         width=640,
         height=480,
         capture_factory=lambda index: fake_capture,
+        time_provider_ns=SequenceClockNs([10_000_000, 20_000_000]).now,
     )
 
     source.open()
@@ -39,6 +40,10 @@ def test_camera_source_reads_frames_and_releases_capture() -> None:
     assert second is not None
     assert first.frame_id == 0
     assert second.frame_id == 1
+    assert first.timestamp_ms == 10.0
+    assert first.timestamp_ns == 10_000_000
+    assert second.timestamp_ms == 20.0
+    assert second.timestamp_ns == 20_000_000
     assert first.original_frame == "frame-a"
     assert end is None
     assert fake_capture.released is True
@@ -65,6 +70,7 @@ def test_video_file_source_reads_frames_from_existing_path(tmp_path: Path) -> No
     source = VideoFileSource(
         file_path=video_path,
         capture_factory=lambda path: fake_capture,
+        time_provider_ns=SequenceClockNs([30_000_000]).now,
     )
 
     source.open()
@@ -74,6 +80,8 @@ def test_video_file_source_reads_frames_from_existing_path(tmp_path: Path) -> No
 
     assert packet is not None
     assert packet.frame_id == 0
+    assert packet.timestamp_ms == 30.0
+    assert packet.timestamp_ns == 30_000_000
     assert packet.original_frame == "frame-a"
     assert end is None
     assert fake_capture.released is True
@@ -151,3 +159,11 @@ class FakeCapture:
 
     def set(self, property_id: int, value: Any) -> None:
         self.properties[property_id] = value
+
+
+class SequenceClockNs:
+    def __init__(self, values: list[int]) -> None:
+        self._values = list(values)
+
+    def now(self) -> int:
+        return self._values.pop(0)
