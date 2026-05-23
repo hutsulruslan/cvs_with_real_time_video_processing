@@ -118,6 +118,15 @@ def test_confidence_threshold_override_is_applied_without_mutating_settings() ->
     assert settings.model.confidence_threshold == 0.4
 
 
+def test_frame_skip_override_is_applied_without_mutating_settings() -> None:
+    settings = _settings()
+
+    updated = apply_run_overrides(settings, RunOverrides(frame_skip=2))
+
+    assert updated.processing.frame_skip == 2
+    assert settings.processing.frame_skip == 0
+
+
 def test_validate_run_overrides_allows_bounded_headless_camera_run() -> None:
     settings = apply_run_overrides(_settings(), RunOverrides(profile="mock-camera"))
 
@@ -151,6 +160,8 @@ def test_validate_run_overrides_rejects_negative_values() -> None:
         validate_run_overrides(settings, RunOverrides(camera_index=-1))
     with pytest.raises(ApplicationError, match="--max-frames"):
         validate_run_overrides(settings, RunOverrides(max_frames=-1))
+    with pytest.raises(ApplicationError, match="--frame-skip"):
+        validate_run_overrides(settings, RunOverrides(frame_skip=-1))
     with pytest.raises(ApplicationError, match="--stream-url"):
         validate_run_overrides(settings, RunOverrides(stream_url=""))
 

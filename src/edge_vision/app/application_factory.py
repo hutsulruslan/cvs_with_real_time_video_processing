@@ -63,6 +63,7 @@ def create_processing_pipeline(settings: AppSettings) -> ProcessingPipeline:
         ),
         fps_counter=FPSCounter(),
         profiler=Profiler(),
+        frame_skip=settings.processing.frame_skip,
     )
 
 

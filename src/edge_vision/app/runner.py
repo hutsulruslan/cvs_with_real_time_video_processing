@@ -91,6 +91,11 @@ def build_arg_parser(default_config_path: str | Path) -> argparse.ArgumentParser
     parser.add_argument("--stream-url", help="Override video.stream_url.")
     parser.add_argument("--max-frames", type=int, help="Stop after N processed frames.")
     parser.add_argument(
+        "--frame-skip",
+        type=int,
+        help="Reuse the latest detections for N frames between model inference runs.",
+    )
+    parser.add_argument(
         "--low-light",
         choices=("off", "gamma", "clahe", "gamma_clahe", "auto"),
         help="Override preprocessing.low_light mode for this run.",
@@ -136,6 +141,7 @@ def _overrides_from_args(args: argparse.Namespace) -> RunOverrides:
         file_path=args.file_path,
         stream_url=args.stream_url,
         max_frames=args.max_frames,
+        frame_skip=args.frame_skip,
         no_display=args.no_display,
         low_light=args.low_light,
         gamma=args.gamma,

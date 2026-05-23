@@ -65,6 +65,45 @@ def test_processing_pipeline_limits_detections_by_confidence() -> None:
     assert [detection.class_name for detection in result.detections] == ["top", "middle"]
 
 
+def test_processing_pipeline_reuses_latest_detections_for_skipped_frames() -> None:
+    pipeline = _pipeline(
+        detections=[_detection("object", confidence=0.9)],
+        profiler_clock=SequenceClock(
+            [
+                0.00,
+                0.01,
+                0.02,
+                0.03,
+                0.04,
+                0.05,
+                0.06,
+                0.07,
+                0.08,
+                0.09,
+                0.10,
+                0.11,
+                0.12,
+                0.13,
+                0.14,
+                0.15,
+                0.16,
+                0.17,
+            ]
+        ),
+        frame_skip=1,
+    )
+
+    first_result = pipeline.process_frame(_packet(frame_id=1))
+    second_result = pipeline.process_frame(_packet(frame_id=2))
+    third_result = pipeline.process_frame(_packet(frame_id=3))
+
+    assert first_result.inference_ms > 0.0
+    assert second_result.inference_ms == 0.0
+    assert second_result.frame_id == 2
+    assert third_result.inference_ms > 0.0
+    assert [d.class_name for d in second_result.detections] == ["object"]
+
+
 def test_video_processing_pipeline_reads_controlled_sequence() -> None:
     source = FakeVideoSource([_packet(frame_id=1)])
     video_pipeline = VideoProcessingPipeline(
@@ -112,6 +151,7 @@ def _pipeline(
     max_detections: int | None = None,
     fps_clock: SequenceClock | None = None,
     profiler_clock: SequenceClock | None = None,
+    frame_skip: int = 0,
 ) -> ProcessingPipeline:
     return ProcessingPipeline(
         preprocessor=FramePreprocessor(input_width=2, input_height=2),
@@ -122,6 +162,7 @@ def _pipeline(
         ),
         fps_counter=FPSCounter(time_provider=(fps_clock or SequenceClock()).now),
         profiler=Profiler(time_provider=(profiler_clock or SequenceClock()).now),
+        frame_skip=frame_skip,
     )
 
 

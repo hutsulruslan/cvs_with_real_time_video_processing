@@ -27,6 +27,12 @@ def test_run_cli_parser_accepts_preflight_flag() -> None:
     assert args.preflight is True
 
 
+def test_run_cli_parser_accepts_frame_skip_override() -> None:
+    args = build_arg_parser("config.yaml").parse_args(["--frame-skip", "2"])
+
+    assert args.frame_skip == 2
+
+
 def test_run_cli_parser_accepts_low_light_and_confidence_overrides() -> None:
     args = build_arg_parser("config.yaml").parse_args(
         [

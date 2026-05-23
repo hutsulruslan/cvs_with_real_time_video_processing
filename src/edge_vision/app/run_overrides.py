@@ -31,6 +31,7 @@ class RunOverrides:
     file_path: str | None = None
     stream_url: str | None = None
     max_frames: int | None = None
+    frame_skip: int | None = None
     no_display: bool = False
     low_light: LowLightMode | None = None
     gamma: float | None = None
@@ -72,6 +73,11 @@ def apply_run_overrides(
         video = replace(video, stream_url=overrides.stream_url)
     if overrides.confidence_threshold is not None:
         model = replace(model, confidence_threshold=overrides.confidence_threshold)
+    if overrides.frame_skip is not None:
+        settings = replace(
+            settings,
+            processing=replace(settings.processing, frame_skip=overrides.frame_skip),
+        )
 
     if overrides.low_light is not None:
         low_light = replace(
@@ -114,6 +120,8 @@ def validate_override_values(overrides: RunOverrides) -> None:
         raise ApplicationError("--camera-index must be non-negative.")
     if overrides.max_frames is not None and overrides.max_frames < 0:
         raise ApplicationError("--max-frames must be non-negative.")
+    if overrides.frame_skip is not None and overrides.frame_skip < 0:
+        raise ApplicationError("--frame-skip must be non-negative.")
     if overrides.stream_url is not None and not overrides.stream_url.strip():
         raise ApplicationError("--stream-url must be a non-empty string.")
     if overrides.low_light is not None and overrides.low_light not in {

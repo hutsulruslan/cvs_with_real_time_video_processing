@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from edge_vision.core.detection import Detection
 from edge_vision.core.frame import FramePacket
 from edge_vision.core.result import FrameResult
 from edge_vision.inference.detector import ObjectDetector
@@ -20,18 +21,37 @@ class ProcessingPipeline:
         postprocessor: DetectionPostProcessor,
         fps_counter: FPSCounter,
         profiler: Profiler,
+        frame_skip: int = 0,
     ) -> None:
+        if frame_skip < 0:
+            raise ValueError("frame_skip must be non-negative.")
         self._preprocessor = preprocessor
         self._detector = detector
         self._postprocessor = postprocessor
         self._fps_counter = fps_counter
         self._profiler = profiler
+        self._frame_skip = frame_skip
+        self._skip_countdown = 0
+        self._last_detections: list[Detection] = []
 
     def process_frame(self, frame_packet: FramePacket) -> FrameResult:
         """Process one frame packet and return detections with timing data."""
         self._profiler.reset()
 
         self._profiler.start("total_frame")
+        if self._should_reuse_last_detections():
+            self._skip_countdown -= 1
+            total_frame_ms = self._profiler.stop("total_frame")
+            fps = self._fps_counter.update()
+            return FrameResult(
+                frame_id=frame_packet.frame_id,
+                timestamp_ms=frame_packet.timestamp_ms,
+                detections=list(self._last_detections),
+                fps=fps,
+                inference_ms=0.0,
+                total_frame_ms=total_frame_ms,
+            )
+
         self._profiler.start("preprocess")
         preprocessed_frame = self._preprocessor.preprocess(frame_packet)
         self._profiler.stop("preprocess")
@@ -46,6 +66,8 @@ class ProcessingPipeline:
 
         total_frame_ms = self._profiler.stop("total_frame")
         fps = self._fps_counter.update()
+        self._last_detections = list(detections)
+        self._skip_countdown = self._frame_skip
 
         return FrameResult(
             frame_id=frame_packet.frame_id,
@@ -55,6 +77,9 @@ class ProcessingPipeline:
             inference_ms=inference_ms,
             total_frame_ms=total_frame_ms,
         )
+
+    def _should_reuse_last_detections(self) -> bool:
+        return self._skip_countdown > 0
 
 
 class VideoProcessingPipeline:

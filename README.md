@@ -136,6 +136,17 @@ To validate configuration without opening a camera or window:
 python main.py --check-config
 ```
 
+For smoother UI preview with a real TFLite model, reuse the latest detections
+between model runs:
+
+```powershell
+python main.py --profile tflite-file --file-path assets/samples/video1.mp4 --frame-skip 2
+```
+
+`--frame-skip 2` runs model inference once and then reuses the latest detection
+boxes for the next two displayed frames. This improves visual FPS on CPU-only
+edge hardware at the cost of less frequent detection updates.
+
 The current runnable mode uses `MockObjectDetector`. It is useful for checking
 the video, preprocessing, postprocessing, metrics, renderer, and display path
 before the real TFLite detector is connected.
