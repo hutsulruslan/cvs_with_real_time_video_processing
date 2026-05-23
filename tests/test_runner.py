@@ -35,6 +35,12 @@ def test_run_cli_parser_accepts_frame_skip_override() -> None:
     assert args.frame_skip == 2
 
 
+def test_run_cli_parser_accepts_file_source_fps_override() -> None:
+    args = build_arg_parser("config.yaml").parse_args(["--file-source-fps", "30"])
+
+    assert args.file_source_fps == 30.0
+
+
 def test_run_cli_parser_accepts_pipeline_mode_override() -> None:
     args = build_arg_parser("config.yaml").parse_args(
         ["--pipeline-mode", "low_latency"]
@@ -116,6 +122,28 @@ def test_run_cli_check_config_accepts_low_light_and_confidence_overrides(
     assert exit_code == 0
     assert "source: camera" in capsys.readouterr().out
     assert config_path.read_text(encoding="utf-8") == original_config
+
+
+def test_run_cli_check_config_accepts_file_source_fps_override(
+    tmp_path: Path,
+    capsys,
+) -> None:
+    config_path = _write_config(tmp_path)
+
+    exit_code = run_cli(
+        [
+            "--config",
+            str(config_path),
+            "--check-config",
+            "--profile",
+            "mock-file",
+            "--file-source-fps",
+            "30",
+        ]
+    )
+
+    assert exit_code == 0
+    assert "source: file" in capsys.readouterr().out
 
 
 def test_run_cli_preflight_prints_report_without_opening_app(
@@ -215,7 +243,11 @@ def test_run_cli_passes_low_latency_pipeline_mode(
     assert exit_code == 0
     assert "Processed frames: 2" in output
     assert "processed_frames: 2" in output
+    assert "captured_frames: 5" in output
     assert "dropped_frames: 3" in output
+    assert "dropped_frame_ratio: 0.60" in output
+    assert "capture_fps: 30.00" in output
+    assert "inference_fps: 15.00" in output
     assert "replaced_results: 1" in output
 
 
@@ -374,6 +406,19 @@ class FakeApplication:
 
 
 class FakeLowLatencyApplication(FakeApplication):
+    @property
+    def runtime_metrics(self) -> dict[str, int | float | None]:
+        return {
+            "captured_frames": 5,
+            "dropped_frames": 3,
+            "dropped_frame_ratio": 0.6,
+            "latest_captured_frame_id": 5,
+            "latest_processed_frame_id": 5,
+            "capture_fps": 30.0,
+            "inference_fps": 15.0,
+            "replaced_results": 1,
+        }
+
     @property
     def dropped_frames(self) -> int:
         return 3

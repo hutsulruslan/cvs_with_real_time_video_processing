@@ -57,15 +57,18 @@ def test_runtime_field_overrides_are_applied_without_mutating_settings() -> None
         RunOverrides(
             camera_index=2,
             file_path="assets/samples/demo.mp4",
+            file_source_fps=30.0,
             stream_url="http://example.local:8080/video",
         ),
     )
 
     assert updated.video.camera_index == 2
     assert updated.video.file_path == "assets/samples/demo.mp4"
+    assert updated.video.file_source_fps == 30.0
     assert updated.video.stream_url == "http://example.local:8080/video"
     assert settings.video.camera_index == 0
     assert settings.video.file_path == "assets/samples/sample_video.mp4"
+    assert settings.video.file_source_fps is None
     assert settings.video.stream_url == ""
 
 
@@ -171,6 +174,8 @@ def test_validate_run_overrides_rejects_negative_values() -> None:
         validate_run_overrides(settings, RunOverrides(max_frames=-1))
     with pytest.raises(ApplicationError, match="--frame-skip"):
         validate_run_overrides(settings, RunOverrides(frame_skip=-1))
+    with pytest.raises(ApplicationError, match="--file-source-fps"):
+        validate_run_overrides(settings, RunOverrides(file_source_fps=0))
     invalid_mode = "hard_realtime"
     with pytest.raises(ApplicationError, match="--pipeline-mode"):
         validate_run_overrides(

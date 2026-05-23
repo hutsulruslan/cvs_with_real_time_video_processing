@@ -17,7 +17,10 @@ def create_video_source(settings: VideoSettings) -> VideoSource:
             height=settings.height,
         )
     if settings.source_type == "file":
-        return VideoFileSource(settings.file_path)
+        return VideoFileSource(
+            settings.file_path,
+            file_source_fps=settings.file_source_fps,
+        )
     if settings.source_type == "stream":
         return VideoStreamSource(settings.stream_url)
     if settings.source_type == "picamera2":

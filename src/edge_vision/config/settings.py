@@ -19,6 +19,7 @@ class VideoSettings:
     width: int
     height: int
     stream_url: str = ""
+    file_source_fps: float | None = None
 
 
 @dataclass(frozen=True, slots=True)

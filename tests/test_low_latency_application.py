@@ -26,7 +26,7 @@ def test_low_latency_application_runs_bounded_headless_flow() -> None:
     writer = FakeResultWriter()
     reported_results: list[FrameResult] = []
 
-    processed_frames = LowLatencyStreamingApplication(
+    application = LowLatencyStreamingApplication(
         video_source=source,
         processing_pipeline=pipeline,
         renderer=None,
@@ -34,12 +34,17 @@ def test_low_latency_application_runs_bounded_headless_flow() -> None:
         max_frames=2,
         result_writer=writer,
         result_callback=reported_results.append,
-    ).run()
+    )
+
+    processed_frames = application.run()
 
     assert processed_frames == 2
     assert [packet.frame_id for packet in pipeline.received_packets] == [1, 2]
     assert [result.frame_id for result in writer.results] == [1, 2]
     assert [result.frame_id for result in reported_results] == [1, 2]
+    assert application.runtime_metrics["captured_frames"] == 2
+    assert application.runtime_metrics["latest_captured_frame_id"] == 2
+    assert application.runtime_metrics["latest_processed_frame_id"] == 2
     assert source.released is True
     assert writer.closed is True
 
@@ -82,6 +87,13 @@ def test_low_latency_application_drops_old_frames_when_capture_outpaces_inferenc
     assert errors == []
     assert processed_frames == [2]
     assert [packet.frame_id for packet in pipeline.received_packets] == [1, 6]
+    assert application.runtime_metrics["captured_frames"] == 6
+    assert application.runtime_metrics["dropped_frames"] == 4
+    assert application.runtime_metrics["dropped_frame_ratio"] == pytest.approx(4 / 6)
+    assert application.runtime_metrics["latest_captured_frame_id"] == 6
+    assert application.runtime_metrics["latest_processed_frame_id"] == 6
+    assert application.runtime_metrics["capture_fps"] is not None
+    assert application.runtime_metrics["inference_fps"] is not None
     assert source.released is True
 
 

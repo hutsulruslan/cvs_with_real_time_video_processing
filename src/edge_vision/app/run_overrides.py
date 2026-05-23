@@ -30,6 +30,7 @@ class RunOverrides:
     profile: RunProfile | None = None
     camera_index: int | None = None
     file_path: str | None = None
+    file_source_fps: float | None = None
     stream_url: str | None = None
     max_frames: int | None = None
     frame_skip: int | None = None
@@ -71,6 +72,8 @@ def apply_run_overrides(
         video = replace(video, camera_index=overrides.camera_index)
     if overrides.file_path is not None:
         video = replace(video, file_path=overrides.file_path)
+    if overrides.file_source_fps is not None:
+        video = replace(video, file_source_fps=overrides.file_source_fps)
     if overrides.stream_url is not None:
         video = replace(video, stream_url=overrides.stream_url)
     if overrides.confidence_threshold is not None:
@@ -132,6 +135,11 @@ def validate_override_values(overrides: RunOverrides) -> None:
         raise ApplicationError("--max-frames must be non-negative.")
     if overrides.frame_skip is not None and overrides.frame_skip < 0:
         raise ApplicationError("--frame-skip must be non-negative.")
+    if overrides.file_source_fps is not None and (
+        isinstance(overrides.file_source_fps, bool)
+        or overrides.file_source_fps <= 0
+    ):
+        raise ApplicationError("--file-source-fps must be a positive number.")
     if overrides.pipeline_mode is not None and overrides.pipeline_mode not in {
         "sequential",
         "low_latency",

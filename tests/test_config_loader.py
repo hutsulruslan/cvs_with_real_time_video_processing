@@ -20,6 +20,7 @@ def test_project_default_config_uses_mock_runtime() -> None:
     settings = load_config(PROJECT_ROOT / "config.yaml")
 
     assert settings.model.runtime == "mock"
+    assert settings.video.file_source_fps is None
     assert settings.low_light.enabled is False
     assert settings.low_light.mode == "off"
     assert settings.processing.pipeline_mode == "sequential"
@@ -34,6 +35,7 @@ def test_load_config_returns_typed_settings(tmp_path: Path) -> None:
     assert settings.video.source_type == "camera"
     assert settings.video.width == 640
     assert settings.video.stream_url == ""
+    assert settings.video.file_source_fps is None
     assert settings.model.runtime == "mock"
     assert settings.model.confidence_threshold == 0.4
     assert settings.model.normalize is False
@@ -71,6 +73,23 @@ def test_parse_config_accepts_stream_source_with_stream_url() -> None:
 
     assert settings.video.source_type == "stream"
     assert settings.video.stream_url == "http://example.local:8080/video"
+
+
+def test_parse_config_accepts_file_source_fps() -> None:
+    raw_config = _valid_config_dict()
+    raw_config["video"]["file_source_fps"] = 30.0
+
+    settings = parse_config_data(raw_config)
+
+    assert settings.video.file_source_fps == 30.0
+
+
+def test_parse_config_rejects_invalid_file_source_fps() -> None:
+    raw_config = _valid_config_dict()
+    raw_config["video"]["file_source_fps"] = 0
+
+    with pytest.raises(ConfigurationError, match="file_source_fps"):
+        parse_config_data(raw_config)
 
 
 def test_parse_config_rejects_stream_source_without_stream_url() -> None:

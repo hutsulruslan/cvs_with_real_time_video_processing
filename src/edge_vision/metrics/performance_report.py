@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Mapping
 
 from edge_vision.core.result import FrameResult
 
@@ -81,6 +82,7 @@ class PerformanceReportBuilder:
 def format_performance_report(
     summary: PerformanceSummary,
     *,
+    runtime_metrics: Mapping[str, int | float | None] | None = None,
     dropped_frames: int | None = None,
     replaced_results: int | None = None,
 ) -> str:
@@ -115,10 +117,13 @@ def format_performance_report(
             f"{_format_metric(summary.max_end_to_end_latency_ms)}"
         ),
     ]
-    if dropped_frames is not None:
-        lines.append(f"- dropped_frames: {dropped_frames}")
-    if replaced_results is not None:
-        lines.append(f"- replaced_results: {replaced_results}")
+    extra_metrics = dict(runtime_metrics or {})
+    if dropped_frames is not None and "dropped_frames" not in extra_metrics:
+        extra_metrics["dropped_frames"] = dropped_frames
+    if replaced_results is not None and "replaced_results" not in extra_metrics:
+        extra_metrics["replaced_results"] = replaced_results
+    for name, value in extra_metrics.items():
+        lines.append(f"- {name}: {_format_report_value(value)}")
     return "\n".join(lines)
 
 
@@ -158,3 +163,11 @@ def _format_metric(value: float | None) -> str:
     if value is None:
         return "n/a"
     return f"{value:.2f}"
+
+
+def _format_report_value(value: int | float | None) -> str:
+    if value is None:
+        return "n/a"
+    if isinstance(value, int):
+        return str(value)
+    return _format_metric(value)

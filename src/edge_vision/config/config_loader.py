@@ -65,6 +65,7 @@ def parse_config_data(raw_data: Any) -> AppSettings:
             width=sections["video"]["width"],
             height=sections["video"]["height"],
             stream_url=sections["video"].get("stream_url", ""),
+            file_source_fps=sections["video"].get("file_source_fps"),
         ),
         model=ModelSettings(
             runtime=sections["model"]["runtime"],
@@ -125,6 +126,11 @@ def _validate_settings(settings: AppSettings) -> None:
     _require_positive_int(settings.video.height, "video.height")
     _require_text(settings.video.file_path, "video.file_path")
     _require_optional_text(settings.video.stream_url, "video.stream_url")
+    if settings.video.file_source_fps is not None:
+        _require_positive_number(
+            settings.video.file_source_fps,
+            "video.file_source_fps",
+        )
     if settings.video.source_type == "stream":
         _require_text(settings.video.stream_url, "video.stream_url")
 

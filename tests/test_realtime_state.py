@@ -11,7 +11,11 @@ SRC_ROOT = PROJECT_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-from edge_vision.app.realtime_state import LatestFrameBuffer, LatestResultStore
+from edge_vision.app.realtime_state import (
+    LatestFrameBuffer,
+    LatestResultStore,
+    LowLatencyRuntimeStats,
+)
 from edge_vision.core.frame import FramePacket
 from edge_vision.core.result import FrameResult
 
@@ -132,6 +136,30 @@ def test_latest_result_store_clear_preserves_count_and_reset_clears_count() -> N
     assert store.replaced_results == 0
 
 
+def test_low_latency_runtime_stats_reports_counts_and_rates() -> None:
+    clock = SequenceClock([0.0, 2.0, 10.0, 14.0])
+    stats = LowLatencyRuntimeStats(time_provider_s=clock.now)
+
+    stats.start_capture()
+    stats.record_captured_frame(_frame(1))
+    stats.record_captured_frame(_frame(2))
+    stats.finish_capture()
+    stats.start_inference()
+    stats.record_processed_result(_result(2))
+    stats.finish_inference()
+
+    fields = stats.report_fields(dropped_frames=1, replaced_results=0)
+
+    assert fields["captured_frames"] == 2
+    assert fields["dropped_frames"] == 1
+    assert fields["dropped_frame_ratio"] == 0.5
+    assert fields["latest_captured_frame_id"] == 2
+    assert fields["latest_processed_frame_id"] == 2
+    assert fields["capture_fps"] == 1.0
+    assert fields["inference_fps"] == 0.25
+    assert fields["replaced_results"] == 0
+
+
 def _frame(frame_id: int) -> FramePacket:
     return FramePacket(
         frame_id=frame_id,
@@ -151,3 +179,11 @@ def _result(frame_id: int) -> FrameResult:
         inference_ms=4.0,
         total_frame_ms=8.0,
     )
+
+
+class SequenceClock:
+    def __init__(self, values: list[float]) -> None:
+        self._values = list(values)
+
+    def now(self) -> float:
+        return self._values.pop(0)

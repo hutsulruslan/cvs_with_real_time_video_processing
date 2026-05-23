@@ -112,6 +112,31 @@ def test_format_performance_report_contains_key_metrics() -> None:
 def test_format_performance_report_can_include_low_latency_counters() -> None:
     report = format_performance_report(
         PerformanceReportBuilder().build(),
+        runtime_metrics={
+            "captured_frames": 6,
+            "dropped_frames": 4,
+            "dropped_frame_ratio": 4 / 6,
+            "latest_captured_frame_id": 6,
+            "latest_processed_frame_id": 6,
+            "capture_fps": 30.0,
+            "inference_fps": 12.5,
+            "replaced_results": 1,
+        },
+    )
+
+    assert "captured_frames: 6" in report
+    assert "dropped_frames: 4" in report
+    assert "dropped_frame_ratio: 0.67" in report
+    assert "latest_captured_frame_id: 6" in report
+    assert "latest_processed_frame_id: 6" in report
+    assert "capture_fps: 30.00" in report
+    assert "inference_fps: 12.50" in report
+    assert "replaced_results: 1" in report
+
+
+def test_format_performance_report_keeps_legacy_low_latency_kwargs() -> None:
+    report = format_performance_report(
+        PerformanceReportBuilder().build(),
         dropped_frames=4,
         replaced_results=1,
     )

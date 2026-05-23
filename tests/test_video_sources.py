@@ -87,6 +87,54 @@ def test_video_file_source_reads_frames_from_existing_path(tmp_path: Path) -> No
     assert fake_capture.released is True
 
 
+def test_video_file_source_defaults_to_unpaced_reads(tmp_path: Path) -> None:
+    video_path = tmp_path / "sample.mp4"
+    video_path.write_bytes(b"placeholder")
+    fake_capture = FakeCapture(frames=["frame-a", "frame-b"])
+    pace_clock = PaceClock()
+    source = VideoFileSource(
+        file_path=video_path,
+        capture_factory=lambda path: fake_capture,
+        time_provider_ns=SequenceClockNs([10_000_000, 20_000_000]).now,
+        time_provider_s=pace_clock.now,
+        sleep_func=pace_clock.sleep,
+    )
+
+    source.open()
+    source.read()
+    source.read()
+    source.release()
+
+    assert pace_clock.sleep_calls == []
+
+
+def test_video_file_source_can_pace_reads(tmp_path: Path) -> None:
+    video_path = tmp_path / "sample.mp4"
+    video_path.write_bytes(b"placeholder")
+    fake_capture = FakeCapture(frames=["frame-a", "frame-b"])
+    pace_clock = PaceClock()
+    source = VideoFileSource(
+        file_path=video_path,
+        capture_factory=lambda path: fake_capture,
+        time_provider_ns=SequenceClockNs([10_000_000, 20_000_000]).now,
+        file_source_fps=2.0,
+        time_provider_s=pace_clock.now,
+        sleep_func=pace_clock.sleep,
+    )
+
+    source.open()
+    source.read()
+    source.read()
+    source.release()
+
+    assert pace_clock.sleep_calls == [0.5]
+
+
+def test_video_file_source_rejects_invalid_pace_fps(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="file_source_fps"):
+        VideoFileSource(file_path=tmp_path / "sample.mp4", file_source_fps=0)
+
+
 def test_video_file_source_rejects_missing_path(tmp_path: Path) -> None:
     source = VideoFileSource(
         file_path=tmp_path / "missing.mp4",
@@ -111,6 +159,7 @@ def test_create_video_source_uses_configured_source_type() -> None:
         file_path="assets/samples/sample_video.mp4",
         width=640,
         height=480,
+        file_source_fps=30.0,
     )
     stream_settings = VideoSettings(
         source_type="stream",
@@ -122,7 +171,10 @@ def test_create_video_source_uses_configured_source_type() -> None:
     )
 
     assert isinstance(create_video_source(camera_settings), OpenCVCameraSource)
-    assert isinstance(create_video_source(file_settings), VideoFileSource)
+    file_source = create_video_source(file_settings)
+
+    assert isinstance(file_source, VideoFileSource)
+    assert file_source._file_source_fps == 30.0
     assert isinstance(create_video_source(stream_settings), VideoStreamSource)
 
 
@@ -167,3 +219,16 @@ class SequenceClockNs:
 
     def now(self) -> int:
         return self._values.pop(0)
+
+
+class PaceClock:
+    def __init__(self) -> None:
+        self.current_s = 0.0
+        self.sleep_calls: list[float] = []
+
+    def now(self) -> float:
+        return self.current_s
+
+    def sleep(self, duration_s: float) -> None:
+        self.sleep_calls.append(duration_s)
+        self.current_s += duration_s

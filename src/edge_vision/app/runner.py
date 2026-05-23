@@ -62,6 +62,7 @@ def run_cli(
         print(
             format_performance_report(
                 report_builder.build(),
+                runtime_metrics=getattr(application, "runtime_metrics", None),
                 dropped_frames=getattr(application, "dropped_frames", None),
                 replaced_results=getattr(application, "replaced_results", None),
             )
@@ -94,6 +95,11 @@ def build_arg_parser(default_config_path: str | Path) -> argparse.ArgumentParser
     )
     parser.add_argument("--camera-index", type=int, help="Override video.camera_index.")
     parser.add_argument("--file-path", help="Override video.file_path.")
+    parser.add_argument(
+        "--file-source-fps",
+        type=float,
+        help="Pace file input to the given FPS for camera-like testing.",
+    )
     parser.add_argument("--stream-url", help="Override video.stream_url.")
     parser.add_argument("--max-frames", type=int, help="Stop after N processed frames.")
     parser.add_argument(
@@ -150,6 +156,7 @@ def _overrides_from_args(args: argparse.Namespace) -> RunOverrides:
         profile=args.profile,
         camera_index=args.camera_index,
         file_path=args.file_path,
+        file_source_fps=args.file_source_fps,
         stream_url=args.stream_url,
         max_frames=args.max_frames,
         frame_skip=args.frame_skip,

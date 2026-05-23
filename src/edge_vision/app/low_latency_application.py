@@ -4,7 +4,11 @@ from threading import Event, Lock, Thread
 from typing import Any, Callable
 
 from edge_vision.app.pipeline import ProcessingPipeline
-from edge_vision.app.realtime_state import LatestFrameBuffer, LatestResultStore
+from edge_vision.app.realtime_state import (
+    LatestFrameBuffer,
+    LatestResultStore,
+    LowLatencyRuntimeStats,
+)
 from edge_vision.core.frame import FramePacket
 from edge_vision.core.result import FrameResult
 from edge_vision.storage.result_writer import ResultWriter
@@ -27,6 +31,7 @@ class LowLatencyStreamingApplication:
         result_callback: Callable[[FrameResult], None] | None = None,
         frame_buffer: LatestFrameBuffer | None = None,
         result_store: LatestResultStore | None = None,
+        runtime_stats: LowLatencyRuntimeStats | None = None,
         capture_batch_size: int = 1,
     ) -> None:
         if max_frames is not None and max_frames < 0:
@@ -46,14 +51,13 @@ class LowLatencyStreamingApplication:
         self._result_callback = result_callback
         self._frame_buffer = frame_buffer or LatestFrameBuffer()
         self._result_store = result_store or LatestResultStore()
+        self._runtime_stats = runtime_stats or LowLatencyRuntimeStats()
         self._capture_batch_size = capture_batch_size
         self._stop_event = Event()
         self._capture_finished = Event()
         self._inference_finished = Event()
-        self._state_lock = Lock()
         self._worker_error_lock = Lock()
         self._render_lock = Lock()
-        self._processed_frames = 0
         self._worker_error: Exception | None = None
         self._latest_rendered_frame: Any | None = None
         self._latest_rendered_frame_id: int | None = None
@@ -94,14 +98,21 @@ class LowLatencyStreamingApplication:
         """Results replaced in the latest-result store."""
         return self._result_store.replaced_results
 
+    @property
+    def runtime_metrics(self) -> dict[str, int | float | None]:
+        """Low-latency counters for CLI reporting."""
+        return self._runtime_stats.report_fields(
+            dropped_frames=self.dropped_frames,
+            replaced_results=self.replaced_results,
+        )
+
     def _prepare_run_state(self) -> None:
         self._stop_event.clear()
         self._capture_finished.clear()
         self._inference_finished.clear()
         self._frame_buffer.reset()
         self._result_store.reset()
-        with self._state_lock:
-            self._processed_frames = 0
+        self._runtime_stats.reset()
         with self._worker_error_lock:
             self._worker_error = None
         with self._render_lock:
@@ -124,6 +135,7 @@ class LowLatencyStreamingApplication:
 
     def _capture_frames(self) -> None:
         try:
+            self._runtime_stats.start_capture()
             while not self._stop_event.is_set():
                 for _ in range(self._capture_batch_size):
                     if self._stop_event.is_set():
@@ -131,14 +143,17 @@ class LowLatencyStreamingApplication:
                     frame_packet = self._video_source.read()
                     if frame_packet is None:
                         return
+                    self._runtime_stats.record_captured_frame(frame_packet)
                     self._frame_buffer.put(frame_packet)
         except Exception as error:
             self._record_worker_error(error)
         finally:
+            self._runtime_stats.finish_capture()
             self._capture_finished.set()
 
     def _process_latest_frames(self) -> None:
         try:
+            self._runtime_stats.start_inference()
             while not self._stop_event.is_set():
                 if not self._can_process_more():
                     self._stop_event.set()
@@ -159,10 +174,11 @@ class LowLatencyStreamingApplication:
                 if self._result_callback is not None:
                     self._result_callback(result)
                 self._publish_rendered_frame(frame_packet, result)
-                self._increment_processed_frames()
+                self._record_processed_result(result)
         except Exception as error:
             self._record_worker_error(error)
         finally:
+            self._runtime_stats.finish_inference()
             self._inference_finished.set()
 
     def _wait_for_workers(self) -> None:
@@ -178,16 +194,13 @@ class LowLatencyStreamingApplication:
         return self._processed_frame_count() < self._max_frames
 
     def _processed_frame_count(self) -> int:
-        with self._state_lock:
-            return self._processed_frames
+        return self._runtime_stats.snapshot().processed_frames
 
-    def _increment_processed_frames(self) -> None:
-        with self._state_lock:
-            self._processed_frames += 1
-            should_stop = (
-                self._max_frames is not None
-                and self._processed_frames >= self._max_frames
-            )
+    def _record_processed_result(self, result: FrameResult) -> None:
+        processed_frames = self._runtime_stats.record_processed_result(result)
+        should_stop = (
+            self._max_frames is not None and processed_frames >= self._max_frames
+        )
         if should_stop:
             self._stop_event.set()
 
