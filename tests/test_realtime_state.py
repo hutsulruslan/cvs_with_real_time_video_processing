@@ -63,6 +63,12 @@ def test_latest_frame_buffer_pop_clears_without_counting_next_put_as_drop() -> N
     assert buffer.dropped_frames == 0
 
 
+def test_latest_frame_buffer_wait_pop_latest_returns_none_when_empty() -> None:
+    buffer = LatestFrameBuffer()
+
+    assert buffer.wait_pop_latest(timeout=0.0) is None
+
+
 def test_latest_frame_buffer_clear_preserves_count_and_reset_clears_count() -> None:
     buffer = LatestFrameBuffer()
 

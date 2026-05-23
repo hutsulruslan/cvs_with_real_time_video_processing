@@ -59,7 +59,13 @@ def run_cli(
 
     print(f"Processed frames: {processed_frames}")
     if report_builder is not None:
-        print(format_performance_report(report_builder.build()))
+        print(
+            format_performance_report(
+                report_builder.build(),
+                dropped_frames=getattr(application, "dropped_frames", None),
+                replaced_results=getattr(application, "replaced_results", None),
+            )
+        )
     return 0
 
 

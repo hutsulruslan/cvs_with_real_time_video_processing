@@ -78,40 +78,48 @@ class PerformanceReportBuilder:
         )
 
 
-def format_performance_report(summary: PerformanceSummary) -> str:
+def format_performance_report(
+    summary: PerformanceSummary,
+    *,
+    dropped_frames: int | None = None,
+    replaced_results: int | None = None,
+) -> str:
     """Format a performance summary for CLI output."""
-    return "\n".join(
-        [
-            "Performance report:",
-            f"- processed_frames: {summary.processed_frames}",
-            f"- processed_inference_frames: {summary.processed_inference_frames}",
-            f"- total_detections: {summary.total_detections}",
-            f"- average_fps: {_format_metric(summary.average_fps)}",
-            f"- min_fps: {_format_metric(summary.min_fps)}",
-            f"- max_fps: {_format_metric(summary.max_fps)}",
-            f"- average_inference_ms: {_format_metric(summary.average_inference_ms)}",
-            f"- min_inference_ms: {_format_metric(summary.min_inference_ms)}",
-            f"- max_inference_ms: {_format_metric(summary.max_inference_ms)}",
-            f"- average_total_frame_ms: {_format_metric(summary.average_total_frame_ms)}",
-            f"- min_total_frame_ms: {_format_metric(summary.min_total_frame_ms)}",
-            f"- max_total_frame_ms: {_format_metric(summary.max_total_frame_ms)}",
-            f"- average_result_age_ms: {_format_metric(summary.average_result_age_ms)}",
-            f"- min_result_age_ms: {_format_metric(summary.min_result_age_ms)}",
-            f"- max_result_age_ms: {_format_metric(summary.max_result_age_ms)}",
-            (
-                "- average_end_to_end_latency_ms: "
-                f"{_format_metric(summary.average_end_to_end_latency_ms)}"
-            ),
-            (
-                "- min_end_to_end_latency_ms: "
-                f"{_format_metric(summary.min_end_to_end_latency_ms)}"
-            ),
-            (
-                "- max_end_to_end_latency_ms: "
-                f"{_format_metric(summary.max_end_to_end_latency_ms)}"
-            ),
-        ]
-    )
+    lines = [
+        "Performance report:",
+        f"- processed_frames: {summary.processed_frames}",
+        f"- processed_inference_frames: {summary.processed_inference_frames}",
+        f"- total_detections: {summary.total_detections}",
+        f"- average_fps: {_format_metric(summary.average_fps)}",
+        f"- min_fps: {_format_metric(summary.min_fps)}",
+        f"- max_fps: {_format_metric(summary.max_fps)}",
+        f"- average_inference_ms: {_format_metric(summary.average_inference_ms)}",
+        f"- min_inference_ms: {_format_metric(summary.min_inference_ms)}",
+        f"- max_inference_ms: {_format_metric(summary.max_inference_ms)}",
+        f"- average_total_frame_ms: {_format_metric(summary.average_total_frame_ms)}",
+        f"- min_total_frame_ms: {_format_metric(summary.min_total_frame_ms)}",
+        f"- max_total_frame_ms: {_format_metric(summary.max_total_frame_ms)}",
+        f"- average_result_age_ms: {_format_metric(summary.average_result_age_ms)}",
+        f"- min_result_age_ms: {_format_metric(summary.min_result_age_ms)}",
+        f"- max_result_age_ms: {_format_metric(summary.max_result_age_ms)}",
+        (
+            "- average_end_to_end_latency_ms: "
+            f"{_format_metric(summary.average_end_to_end_latency_ms)}"
+        ),
+        (
+            "- min_end_to_end_latency_ms: "
+            f"{_format_metric(summary.min_end_to_end_latency_ms)}"
+        ),
+        (
+            "- max_end_to_end_latency_ms: "
+            f"{_format_metric(summary.max_end_to_end_latency_ms)}"
+        ),
+    ]
+    if dropped_frames is not None:
+        lines.append(f"- dropped_frames: {dropped_frames}")
+    if replaced_results is not None:
+        lines.append(f"- replaced_results: {replaced_results}")
+    return "\n".join(lines)
 
 
 class _MetricAccumulator:

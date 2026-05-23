@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Callable
+from threading import Event, Lock, Thread
+from typing import Any, Callable
 
 from edge_vision.app.pipeline import ProcessingPipeline
 from edge_vision.app.realtime_state import LatestFrameBuffer, LatestResultStore
@@ -13,7 +14,7 @@ from edge_vision.visualization.window_display import WindowDisplay
 
 
 class LowLatencyStreamingApplication:
-    """Run an opt-in latest-frame processing loop without accumulating old frames."""
+    """Run opt-in latest-frame processing without accumulating old frames."""
 
     def __init__(
         self,
@@ -46,37 +47,42 @@ class LowLatencyStreamingApplication:
         self._frame_buffer = frame_buffer or LatestFrameBuffer()
         self._result_store = result_store or LatestResultStore()
         self._capture_batch_size = capture_batch_size
+        self._stop_event = Event()
+        self._capture_finished = Event()
+        self._inference_finished = Event()
+        self._state_lock = Lock()
+        self._worker_error_lock = Lock()
+        self._render_lock = Lock()
+        self._processed_frames = 0
+        self._worker_error: Exception | None = None
+        self._latest_rendered_frame: Any | None = None
+        self._latest_rendered_frame_id: int | None = None
+        self._last_displayed_frame_id: int | None = None
+        self._control_poll_interval_s = 0.01
+        self._frame_wait_timeout_s = 0.01
 
     def run(self) -> int:
-        """Run a bounded latest-frame loop and return processed frames."""
-        processed_frames = 0
+        """Run separated capture/inference workers and return processed frames."""
+        workers: list[Thread] = []
         try:
+            self._prepare_run_state()
             self._video_source.open()
-            while self._can_process_more(processed_frames):
-                if not self._capture_latest_frames():
-                    break
-
-                frame_packet = self._frame_buffer.pop_latest()
-                if frame_packet is None:
-                    continue
-
-                result = self._processing_pipeline.process_frame(frame_packet)
-                self._result_store.put(result)
-                if self._result_writer is not None:
-                    self._result_writer.write(result)
-                if self._result_callback is not None:
-                    self._result_callback(result)
-                processed_frames += 1
-                if self._should_stop_for_display(frame_packet):
-                    break
+            if self._can_process_more():
+                workers = self._start_workers()
+                self._wait_for_workers()
+                self._raise_worker_error()
         finally:
+            self._stop_event.set()
+            for worker in workers:
+                worker.join()
             self._video_source.release()
             if self._display is not None:
                 self._display.close()
             if self._result_writer is not None:
                 self._result_writer.close()
 
-        return processed_frames
+        self._raise_worker_error()
+        return self._processed_frame_count()
 
     @property
     def dropped_frames(self) -> int:
@@ -88,32 +94,144 @@ class LowLatencyStreamingApplication:
         """Results replaced in the latest-result store."""
         return self._result_store.replaced_results
 
-    def _capture_latest_frames(self) -> bool:
-        captured_any = False
-        for _ in range(self._capture_batch_size):
-            frame_packet = self._video_source.read()
-            if frame_packet is None:
-                break
-            self._frame_buffer.put(frame_packet)
-            captured_any = True
-        return captured_any
+    def _prepare_run_state(self) -> None:
+        self._stop_event.clear()
+        self._capture_finished.clear()
+        self._inference_finished.clear()
+        self._frame_buffer.reset()
+        self._result_store.reset()
+        with self._state_lock:
+            self._processed_frames = 0
+        with self._worker_error_lock:
+            self._worker_error = None
+        with self._render_lock:
+            self._latest_rendered_frame = None
+            self._latest_rendered_frame_id = None
+            self._last_displayed_frame_id = None
 
-    def _can_process_more(self, processed_frames: int) -> bool:
+    def _start_workers(self) -> list[Thread]:
+        capture_worker = Thread(
+            target=self._capture_frames,
+            name="edge-vision-low-latency-capture",
+        )
+        inference_worker = Thread(
+            target=self._process_latest_frames,
+            name="edge-vision-low-latency-inference",
+        )
+        capture_worker.start()
+        inference_worker.start()
+        return [capture_worker, inference_worker]
+
+    def _capture_frames(self) -> None:
+        try:
+            while not self._stop_event.is_set():
+                for _ in range(self._capture_batch_size):
+                    if self._stop_event.is_set():
+                        break
+                    frame_packet = self._video_source.read()
+                    if frame_packet is None:
+                        return
+                    self._frame_buffer.put(frame_packet)
+        except Exception as error:
+            self._record_worker_error(error)
+        finally:
+            self._capture_finished.set()
+
+    def _process_latest_frames(self) -> None:
+        try:
+            while not self._stop_event.is_set():
+                if not self._can_process_more():
+                    self._stop_event.set()
+                    break
+
+                frame_packet = self._frame_buffer.wait_pop_latest(
+                    timeout=self._frame_wait_timeout_s
+                )
+                if frame_packet is None:
+                    if self._capture_finished.is_set():
+                        break
+                    continue
+
+                result = self._processing_pipeline.process_frame(frame_packet)
+                self._result_store.put(result)
+                if self._result_writer is not None:
+                    self._result_writer.write(result)
+                if self._result_callback is not None:
+                    self._result_callback(result)
+                self._publish_rendered_frame(frame_packet, result)
+                self._increment_processed_frames()
+        except Exception as error:
+            self._record_worker_error(error)
+        finally:
+            self._inference_finished.set()
+
+    def _wait_for_workers(self) -> None:
+        while not self._inference_finished.is_set():
+            self._raise_worker_error()
+            self._show_latest_rendered_frame()
+            self._inference_finished.wait(self._control_poll_interval_s)
+        self._show_latest_rendered_frame()
+
+    def _can_process_more(self) -> bool:
         if self._max_frames is None:
             return True
-        return processed_frames < self._max_frames
+        return self._processed_frame_count() < self._max_frames
 
-    def _should_stop_for_display(self, frame_packet: FramePacket) -> bool:
-        if self._renderer is None or self._display is None:
-            return False
+    def _processed_frame_count(self) -> int:
+        with self._state_lock:
+            return self._processed_frames
 
-        latest_result = self._result_store.get_latest()
-        if latest_result is None:
-            return False
+    def _increment_processed_frames(self) -> None:
+        with self._state_lock:
+            self._processed_frames += 1
+            should_stop = (
+                self._max_frames is not None
+                and self._processed_frames >= self._max_frames
+            )
+        if should_stop:
+            self._stop_event.set()
+
+    def _publish_rendered_frame(
+        self,
+        frame_packet: FramePacket,
+        result: FrameResult,
+    ) -> None:
+        if self._renderer is None:
+            return
 
         rendered_frame = self._renderer.render(
             frame_packet.original_frame,
-            latest_result.detections,
-            fps=latest_result.fps,
+            result.detections,
+            fps=result.fps,
         )
-        return self._display.show(rendered_frame)
+        with self._render_lock:
+            self._latest_rendered_frame = rendered_frame
+            self._latest_rendered_frame_id = result.frame_id
+
+    def _show_latest_rendered_frame(self) -> bool:
+        if self._display is None:
+            return False
+
+        with self._render_lock:
+            frame = self._latest_rendered_frame
+            frame_id = self._latest_rendered_frame_id
+            if frame is None or frame_id == self._last_displayed_frame_id:
+                return False
+            self._last_displayed_frame_id = frame_id
+
+        should_stop = self._display.show(frame)
+        if should_stop:
+            self._stop_event.set()
+        return should_stop
+
+    def _record_worker_error(self, error: Exception) -> None:
+        with self._worker_error_lock:
+            if self._worker_error is None:
+                self._worker_error = error
+        self._stop_event.set()
+
+    def _raise_worker_error(self) -> None:
+        with self._worker_error_lock:
+            error = self._worker_error
+        if error is not None:
+            raise error

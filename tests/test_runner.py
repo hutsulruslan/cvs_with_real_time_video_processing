@@ -215,6 +215,8 @@ def test_run_cli_passes_low_latency_pipeline_mode(
     assert exit_code == 0
     assert "Processed frames: 2" in output
     assert "processed_frames: 2" in output
+    assert "dropped_frames: 3" in output
+    assert "replaced_results: 1" in output
 
 
 def test_run_cli_rejects_unbounded_headless_camera_run(tmp_path: Path, capsys) -> None:
@@ -350,7 +352,7 @@ def _fake_low_latency_application_factory(settings, *args, **kwargs) -> "FakeApp
     assert settings.processing.pipeline_mode == "low_latency"
     assert kwargs["max_frames"] == 2
     assert kwargs["no_display"] is True
-    return FakeApplication(kwargs["result_callback"])
+    return FakeLowLatencyApplication(kwargs["result_callback"])
 
 
 def _raise_if_application_is_created(*args, **kwargs) -> None:
@@ -369,6 +371,16 @@ class FakeApplication:
         self._result_callback(_result(1, 1, 10.0, 5.0, 30.0))
         self._result_callback(_result(2, 2, 20.0, 15.0, 50.0))
         return 2
+
+
+class FakeLowLatencyApplication(FakeApplication):
+    @property
+    def dropped_frames(self) -> int:
+        return 3
+
+    @property
+    def replaced_results(self) -> int:
+        return 1
 
 
 def _result(

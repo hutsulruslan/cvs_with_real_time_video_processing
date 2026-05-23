@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import sys
+from threading import Event, Thread
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -18,8 +20,9 @@ from edge_vision.core.result import FrameResult
 
 
 def test_low_latency_application_runs_bounded_headless_flow() -> None:
-    source = FakeVideoSource([_packet(1), _packet(2)])
-    pipeline = FakePipeline()
+    allow_next_read = Event()
+    source = PacedVideoSource([_packet(1), _packet(2)], allow_next_read)
+    pipeline = FakePipeline(after_process_event=allow_next_read)
     writer = FakeResultWriter()
     reported_results: list[FrameResult] = []
 
@@ -41,29 +44,49 @@ def test_low_latency_application_runs_bounded_headless_flow() -> None:
     assert writer.closed is True
 
 
-def test_low_latency_application_uses_latest_frame_without_queueing_old_frames() -> None:
-    source = FakeVideoSource([_packet(1), _packet(2), _packet(3)])
-    pipeline = FakePipeline()
+def test_low_latency_application_drops_old_frames_when_capture_outpaces_inference() -> None:
+    allow_remaining_reads = Event()
+    release_inference = Event()
+    source = ControlledFastVideoSource(
+        [_packet(1), _packet(2), _packet(3), _packet(4), _packet(5), _packet(6)],
+        allow_remaining_reads,
+    )
+    pipeline = BlockingPipeline(allow_remaining_reads, release_inference)
     application = LowLatencyStreamingApplication(
         video_source=source,
         processing_pipeline=pipeline,
         renderer=None,
         display=None,
-        max_frames=1,
-        capture_batch_size=2,
+        max_frames=2,
     )
+    processed_frames: list[int] = []
+    errors: list[Exception] = []
 
-    processed_frames = application.run()
+    def run_application() -> None:
+        try:
+            processed_frames.append(application.run())
+        except Exception as error:
+            errors.append(error)
 
-    assert processed_frames == 1
-    assert [packet.frame_id for packet in pipeline.received_packets] == [2]
-    assert application.dropped_frames == 1
-    assert source.read_count == 2
+    run_thread = Thread(target=run_application)
+    run_thread.start()
+    try:
+        assert pipeline.started.wait(timeout=1.0)
+        assert source.finished.wait(timeout=1.0)
+        assert application.dropped_frames == 4
+    finally:
+        release_inference.set()
+        run_thread.join(timeout=1.0)
+
+    assert run_thread.is_alive() is False
+    assert errors == []
+    assert processed_frames == [2]
+    assert [packet.frame_id for packet in pipeline.received_packets] == [1, 6]
     assert source.released is True
 
 
 def test_low_latency_application_renders_latest_result() -> None:
-    source = FakeVideoSource([_packet(1), _packet(2)])
+    source = FakeVideoSource([_packet(1)])
     pipeline = FakePipeline()
     renderer = FakeRenderer()
     display = FakeDisplay(quit_after=1)
@@ -102,6 +125,40 @@ def test_low_latency_application_closes_resources_when_source_is_empty() -> None
     assert writer.closed is True
 
 
+def test_low_latency_application_surfaces_capture_worker_errors() -> None:
+    source = RaisingVideoSource(RuntimeError("capture failed"))
+    writer = FakeResultWriter()
+
+    with pytest.raises(RuntimeError, match="capture failed"):
+        LowLatencyStreamingApplication(
+            video_source=source,
+            processing_pipeline=FakePipeline(),
+            renderer=None,
+            display=None,
+            result_writer=writer,
+        ).run()
+
+    assert source.released is True
+    assert writer.closed is True
+
+
+def test_low_latency_application_surfaces_inference_worker_errors() -> None:
+    source = FakeVideoSource([_packet(1)])
+    writer = FakeResultWriter()
+
+    with pytest.raises(RuntimeError, match="inference failed"):
+        LowLatencyStreamingApplication(
+            video_source=source,
+            processing_pipeline=RaisingPipeline(RuntimeError("inference failed")),
+            renderer=None,
+            display=None,
+            result_writer=writer,
+        ).run()
+
+    assert source.released is True
+    assert writer.closed is True
+
+
 class FakeVideoSource:
     def __init__(self, packets: list[FramePacket]) -> None:
         self._packets = list(packets)
@@ -120,12 +177,59 @@ class FakeVideoSource:
         self.released = True
 
 
+class PacedVideoSource(FakeVideoSource):
+    def __init__(
+        self,
+        packets: list[FramePacket],
+        allow_next_read: Event,
+    ) -> None:
+        super().__init__(packets)
+        self._allow_next_read = allow_next_read
+
+    def read(self) -> FramePacket | None:
+        if self.read_count > 0:
+            self._allow_next_read.wait(timeout=1.0)
+        return super().read()
+
+
+class ControlledFastVideoSource(FakeVideoSource):
+    def __init__(
+        self,
+        packets: list[FramePacket],
+        allow_remaining_reads: Event,
+    ) -> None:
+        super().__init__(packets)
+        self._allow_remaining_reads = allow_remaining_reads
+        self.finished = Event()
+
+    def read(self) -> FramePacket | None:
+        if self.read_count > 0:
+            self._allow_remaining_reads.wait(timeout=1.0)
+        packet = super().read()
+        if packet is None:
+            self.finished.set()
+        return packet
+
+
+class RaisingVideoSource(FakeVideoSource):
+    def __init__(self, error: Exception) -> None:
+        super().__init__([])
+        self._error = error
+
+    def read(self) -> FramePacket | None:
+        self.read_count += 1
+        raise self._error
+
+
 class FakePipeline:
-    def __init__(self) -> None:
+    def __init__(self, after_process_event: Event | None = None) -> None:
         self.received_packets: list[FramePacket] = []
+        self._after_process_event = after_process_event
 
     def process_frame(self, frame_packet: FramePacket) -> FrameResult:
         self.received_packets.append(frame_packet)
+        if self._after_process_event is not None:
+            self._after_process_event.set()
         return FrameResult(
             frame_packet.frame_id,
             frame_packet.timestamp_ms,
@@ -134,6 +238,43 @@ class FakePipeline:
             4.0,
             8.0,
         )
+
+
+class BlockingPipeline(FakePipeline):
+    def __init__(
+        self,
+        allow_remaining_reads: Event,
+        release_inference: Event,
+    ) -> None:
+        super().__init__()
+        self.started = Event()
+        self._allow_remaining_reads = allow_remaining_reads
+        self._release_inference = release_inference
+
+    def process_frame(self, frame_packet: FramePacket) -> FrameResult:
+        self.received_packets.append(frame_packet)
+        if len(self.received_packets) == 1:
+            self.started.set()
+            self._allow_remaining_reads.set()
+            self._release_inference.wait(timeout=1.0)
+        return FrameResult(
+            frame_packet.frame_id,
+            frame_packet.timestamp_ms,
+            [_detection(frame_packet.frame_id)],
+            30.0,
+            4.0,
+            8.0,
+        )
+
+
+class RaisingPipeline(FakePipeline):
+    def __init__(self, error: Exception) -> None:
+        super().__init__()
+        self._error = error
+
+    def process_frame(self, frame_packet: FramePacket) -> FrameResult:
+        self.received_packets.append(frame_packet)
+        raise self._error
 
 
 class FakeRenderer:

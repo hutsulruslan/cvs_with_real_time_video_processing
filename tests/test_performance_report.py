@@ -109,6 +109,17 @@ def test_format_performance_report_contains_key_metrics() -> None:
     assert "average_end_to_end_latency_ms: 9.80" in report
 
 
+def test_format_performance_report_can_include_low_latency_counters() -> None:
+    report = format_performance_report(
+        PerformanceReportBuilder().build(),
+        dropped_frames=4,
+        replaced_results=1,
+    )
+
+    assert "dropped_frames: 4" in report
+    assert "replaced_results: 1" in report
+
+
 def test_format_empty_report_uses_not_available_values() -> None:
     report = format_performance_report(PerformanceReportBuilder().build())
 
